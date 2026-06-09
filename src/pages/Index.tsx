@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import useMainStore, { mockUsers } from '@/stores/main'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,29 +12,36 @@ export default function Index() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const { setUser } = useMainStore()
+  const { signIn, isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'secretaria') {
+        navigate('/financeiro')
+      } else {
+        navigate('/dashboard')
+      }
+    }
+  }, [isAuthenticated, user, navigate])
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
-    setTimeout(() => {
-      const user = mockUsers.find((u) => u.email === email)
-      if (user && password === 'aevi1234') {
-        setUser(user)
-        toast({ title: 'Login realizado com sucesso!', description: `Bem-vindo, ${user.name}` })
-        navigate(user.role === 'MEDICO' ? '/dashboard' : '/entradas')
-      } else {
-        toast({
-          title: 'Erro de Autenticação',
-          description: 'E-mail ou senha incorretos.',
-          variant: 'destructive',
-        })
-      }
+    const { error } = await signIn(email, password)
+
+    if (error) {
+      toast({
+        title: 'Erro de Autenticação',
+        description: 'E-mail ou senha incorretos.',
+        variant: 'destructive',
+      })
       setLoading(false)
-    }, 800)
+    } else {
+      toast({ title: 'Login realizado com sucesso!' })
+    }
   }
 
   return (
@@ -104,7 +111,7 @@ export default function Index() {
                 {loading ? 'Entrando...' : 'Acessar'}
               </Button>
               <div className="text-xs text-center text-muted-foreground pt-4">
-                <p>Contas de teste (Senha: aevi1234):</p>
+                <p>Contas de teste (Senha: Skip@Pass123):</p>
                 <p>maykow@hotmail.com.br (Médico)</p>
                 <p>secretaria@clinicaaevi.com.br (Secretária)</p>
               </div>
