@@ -8,7 +8,6 @@ import { getDailyTransactions, deleteTransaction, TransactionRecord } from '@/se
 import { formatCurrency } from '@/lib/utils'
 import { ConsultaForm } from '@/components/financeiro/ConsultaForm'
 import { TaxaForm } from '@/components/financeiro/TaxaForm'
-import { EstornoForm } from '@/components/financeiro/EstornoForm'
 import { NovaSaidaForm } from '@/components/financeiro/NovaSaidaForm'
 import {
   AlertDialog,
@@ -25,9 +24,9 @@ import {
 export default function FinanceiroSecretaria() {
   const { signOut } = useAuth()
   const navigate = useNavigate()
-  const [view, setView] = useState<
-    'home' | 'nova-entrada' | 'nova-saida' | 'consulta' | 'taxa' | 'estorno'
-  >('home')
+  const [view, setView] = useState<'home' | 'nova-entrada' | 'nova-saida' | 'consulta' | 'taxa'>(
+    'home',
+  )
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
 
   const loadData = async () => {
@@ -53,10 +52,6 @@ export default function FinanceiroSecretaria() {
       )
     if (view === 'taxa')
       return <TaxaForm onSuccess={() => setView('home')} onCancel={() => setView('nova-entrada')} />
-    if (view === 'estorno')
-      return (
-        <EstornoForm onSuccess={() => setView('home')} onCancel={() => setView('nova-entrada')} />
-      )
     if (view === 'nova-saida')
       return <NovaSaidaForm onSuccess={() => setView('home')} onCancel={() => setView('home')} />
     if (view === 'nova-entrada') {
@@ -80,12 +75,6 @@ export default function FinanceiroSecretaria() {
           >
             📅 TAXA DE AGENDAMENTO
           </Button>
-          <Button
-            onClick={() => setView('estorno')}
-            className="w-full h-20 text-lg rounded-2xl bg-white text-foreground hover:bg-white shadow-sm border border-border"
-          >
-            ↩️ ESTORNO DE TAXA
-          </Button>
         </div>
       )
     }
@@ -95,15 +84,15 @@ export default function FinanceiroSecretaria() {
         <div className="grid grid-cols-2 gap-4">
           <Button
             onClick={() => setView('nova-entrada')}
-            className="h-32 text-xl font-bold rounded-3xl bg-primary text-white shadow-lg hover:scale-[1.02] flex flex-col gap-2"
+            className="h-32 text-xl font-bold rounded-3xl bg-green-600 text-white shadow-lg hover:bg-green-700 hover:scale-[1.02] flex flex-col gap-2"
           >
             <span className="text-3xl">+</span> NOVA ENTRADA
           </Button>
           <Button
             onClick={() => setView('nova-saida')}
-            className="h-32 text-xl font-bold rounded-3xl bg-secondary text-white shadow-lg hover:scale-[1.02] flex flex-col gap-2"
+            className="h-32 text-xl font-bold rounded-3xl bg-red-600 text-white shadow-lg hover:bg-red-700 hover:scale-[1.02] flex flex-col gap-2"
           >
-            <span className="text-3xl">+</span> NOVA SAÍDA
+            <span className="text-3xl">-</span> NOVA SAÍDA
           </Button>
         </div>
 
@@ -122,13 +111,15 @@ export default function FinanceiroSecretaria() {
                     <p className="font-bold text-sm">
                       {tx.type === 'entry'
                         ? tx.entry_type || tx.doctor
-                        : tx.entry_type || tx.category}
+                        : tx.category === 'ESTORNO DE TAXA'
+                          ? '↩️ Estorno de Taxa'
+                          : tx.category}
                     </p>
                     <p className="text-xs text-muted-foreground">{tx.patient || tx.description}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span
-                      className={`font-bold ${tx.type === 'entry' ? 'text-primary' : 'text-secondary'}`}
+                      className={`font-bold ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
                     >
                       {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
                     </span>

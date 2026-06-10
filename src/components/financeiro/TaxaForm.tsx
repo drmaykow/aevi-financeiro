@@ -17,12 +17,20 @@ const schema = z.object({
   }),
 })
 
+const getLocalDate = () => {
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
   const { toast } = useToast()
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDate(),
       doctor: '',
       patient: '',
       amount: 0,
@@ -49,6 +57,13 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
       toast({
         title: 'Lançamento salvo com sucesso ✓',
         className: 'bg-green-600 text-white border-0',
+      })
+      form.reset({
+        date: getLocalDate(),
+        doctor: '',
+        patient: '',
+        amount: 0,
+        payment_method: undefined,
       })
       onSuccess()
     } catch (e) {
@@ -82,7 +97,7 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
               type="button"
               variant={doc === d ? 'default' : 'outline'}
               className={`h-12 rounded-xl font-bold ${doc === d ? 'bg-primary text-white shadow-md' : 'bg-white'}`}
-              onClick={() => form.setValue('doctor', d)}
+              onClick={() => form.setValue('doctor', d, { shouldValidate: true })}
             >
               {d}
             </Button>
@@ -95,7 +110,7 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
         <Input
           {...form.register('patient')}
           placeholder="Nome completo"
-          className="rounded-xl h-12 bg-white mt-1"
+          className={`rounded-xl h-12 bg-white mt-1 ${form.formState.errors.patient ? 'border-destructive ring-destructive' : ''}`}
         />
         {form.formState.errors.patient && (
           <p className="text-xs text-destructive mt-1">{form.formState.errors.patient.message}</p>
@@ -104,18 +119,28 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
 
       <div>
         <Label className={form.formState.errors.amount ? 'text-destructive' : ''}>Valor</Label>
-        <div className="grid grid-cols-2 gap-3 mt-1">
+        <div className="flex gap-3 mt-1 items-center">
           {[100, 200].map((v) => (
             <Button
               key={v}
               type="button"
               variant={amount === v ? 'default' : 'outline'}
-              className={`h-12 rounded-xl font-bold ${amount === v ? 'bg-secondary text-white shadow-md' : 'bg-white'}`}
-              onClick={() => form.setValue('amount', v)}
+              className={`h-12 flex-1 rounded-xl font-bold ${amount === v ? 'bg-secondary text-white shadow-md' : 'bg-white'}`}
+              onClick={() => form.setValue('amount', v, { shouldValidate: true })}
             >
               R$ {v}
             </Button>
           ))}
+          <Input
+            type="number"
+            step="0.01"
+            placeholder="Outro valor"
+            value={amount || ''}
+            onChange={(e) =>
+              form.setValue('amount', Number(e.target.value), { shouldValidate: true })
+            }
+            className="rounded-xl h-12 flex-1 bg-white"
+          />
         </div>
       </div>
 
@@ -130,7 +155,7 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
               type="button"
               variant={payment === pm ? 'default' : 'outline'}
               className={`h-12 rounded-xl font-bold text-xs ${payment === pm ? 'bg-primary text-white shadow-md' : 'bg-white'}`}
-              onClick={() => form.setValue('payment_method', pm as any)}
+              onClick={() => form.setValue('payment_method', pm as any, { shouldValidate: true })}
             >
               {pm === 'CARTÃO DE CRÉDITO' ? 'CRÉDITO' : pm}
             </Button>
@@ -140,7 +165,7 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
 
       <Button
         type="submit"
-        className="w-full h-14 text-lg rounded-full font-bold shadow-md hover:scale-[1.02] transition-transform"
+        className="w-full h-14 text-lg rounded-full font-bold shadow-md hover:scale-[1.02] transition-transform bg-green-600 hover:bg-green-700 text-white"
       >
         Salvar Taxa
       </Button>

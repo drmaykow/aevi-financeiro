@@ -22,7 +22,7 @@ const schema = z
     date: z.string().min(1, 'Preencha este campo'),
     doctor: z.string().min(1, 'Preencha este campo'),
     patient: z.string().min(1, 'Informe o nome da paciente'),
-    procedures: z.array(z.string()).min(1, 'Selecione ao menos um'),
+    procedures: z.array(z.string()).min(1, 'Selecione ao menos um procedimento'),
     amount: z.coerce.number().min(0.01, 'Preencha este campo'),
     payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO'], {
       required_error: 'Preencha este campo',
@@ -39,6 +39,14 @@ const schema = z
     { message: 'Preencha os dados do cartão', path: ['card_machine'] },
   )
 
+const getLocalDate = () => {
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export function ConsultaForm({
   onSuccess,
   onCancel,
@@ -54,7 +62,7 @@ export function ConsultaForm({
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDate(),
       doctor: '',
       patient: '',
       procedures: [],
@@ -105,6 +113,16 @@ export function ConsultaForm({
       toast({
         title: 'Lançamento salvo com sucesso ✓',
         className: 'bg-green-600 text-white border-0',
+      })
+      form.reset({
+        date: getLocalDate(),
+        doctor: '',
+        patient: '',
+        procedures: [],
+        amount: 0,
+        payment_method: undefined,
+        card_machine: undefined,
+        installments: undefined,
       })
       onSuccess()
     } catch (e) {
@@ -162,7 +180,7 @@ export function ConsultaForm({
               variant={doc === d ? 'default' : 'outline'}
               className={`h-12 rounded-xl font-bold ${doc === d ? 'bg-primary text-white shadow-md' : 'bg-white'}`}
               onClick={() => {
-                form.setValue('doctor', d)
+                form.setValue('doctor', d, { shouldValidate: true })
                 form.setValue('procedures', [])
               }}
             >
@@ -177,7 +195,7 @@ export function ConsultaForm({
         <Input
           {...form.register('patient')}
           placeholder="Nome completo"
-          className="rounded-xl h-12 bg-white mt-1"
+          className={`rounded-xl h-12 bg-white mt-1 ${form.formState.errors.patient ? 'border-destructive ring-destructive' : ''}`}
         />
         {form.formState.errors.patient && (
           <p className="text-xs text-destructive mt-1">{form.formState.errors.patient.message}</p>
@@ -208,6 +226,7 @@ export function ConsultaForm({
                           form.setValue(
                             'procedures',
                             isSel ? cur.filter((x) => x !== p) : [...cur, p],
+                            { shouldValidate: true },
                           )
                         }}
                       >
@@ -239,7 +258,7 @@ export function ConsultaForm({
               variant={payment === pm ? 'default' : 'outline'}
               className={`h-12 rounded-xl font-bold text-xs ${payment === pm ? 'bg-primary text-white shadow-md' : 'bg-white'}`}
               onClick={() => {
-                form.setValue('payment_method', pm as any)
+                form.setValue('payment_method', pm as any, { shouldValidate: true })
                 if (pm !== 'CARTÃO DE CRÉDITO') {
                   form.setValue('card_machine', undefined)
                   form.setValue('installments', undefined)
@@ -255,8 +274,13 @@ export function ConsultaForm({
       {payment === 'CARTÃO DE CRÉDITO' && (
         <div className="space-y-4 p-4 bg-muted/30 rounded-2xl border border-border">
           <div>
-            <Label>Maquininha</Label>
-            <Select onValueChange={(v) => form.setValue('card_machine', v)} value={machineId}>
+            <Label className={form.formState.errors.card_machine ? 'text-destructive' : ''}>
+              Maquininha
+            </Label>
+            <Select
+              onValueChange={(v) => form.setValue('card_machine', v, { shouldValidate: true })}
+              value={machineId}
+            >
               <SelectTrigger className="bg-white rounded-xl h-12 mt-1">
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
@@ -278,7 +302,7 @@ export function ConsultaForm({
                   type="button"
                   variant={inst === i + 1 ? 'default' : 'outline'}
                   className={`h-10 rounded-lg text-xs ${inst === i + 1 ? 'bg-secondary text-white' : 'bg-white'}`}
-                  onClick={() => form.setValue('installments', i + 1)}
+                  onClick={() => form.setValue('installments', i + 1, { shouldValidate: true })}
                 >
                   {i + 1}x
                 </Button>
@@ -303,7 +327,7 @@ export function ConsultaForm({
 
       <Button
         type="submit"
-        className="w-full h-14 text-lg rounded-full font-bold shadow-md hover:scale-[1.02] transition-transform"
+        className="w-full h-14 text-lg rounded-full font-bold shadow-md hover:scale-[1.02] transition-transform bg-green-600 hover:bg-green-700 text-white"
       >
         Salvar Nova Entrada
       </Button>
