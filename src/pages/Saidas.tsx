@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import useMainStore from '@/stores/main'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -13,20 +12,38 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import ExpenseForm from '@/components/forms/ExpenseForm'
+import { UnifiedExpenseForm } from '@/components/financeiro/UnifiedExpenseForm'
 import { Plus, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { getTransactions, TransactionRecord } from '@/services/transactions'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Saidas() {
-  const { transactions } = useMainStore()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([])
+
+  const loadData = async () => {
+    try {
+      const res = await getTransactions()
+      setTransactions(res)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+  useRealtime('transactions', () => {
+    loadData()
+  })
 
   const expenses = transactions.filter(
     (t) =>
-      t.type === 'EXPENSE' &&
-      (t.description.toLowerCase().includes(search.toLowerCase()) ||
-        t.category.toLowerCase().includes(search.toLowerCase())),
+      t.type === 'exit' &&
+      ((t.description || '').toLowerCase().includes(search.toLowerCase()) ||
+        (t.category || '').toLowerCase().includes(search.toLowerCase())),
   )
 
   return (
@@ -47,17 +64,16 @@ export default function Saidas() {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button className="rounded-full shadow-elevation hover:scale-105 transition-transform bg-primary hover:bg-primary/90 text-white h-10 px-6">
-              <Plus className="mr-2" size={18} />
-              Nova Despesa
+              <Plus className="mr-2" size={18} /> Nova Despesa
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-full sm:max-w-md p-6">
-            <SheetHeader>
+          <SheetContent side="right" className="w-full sm:max-w-md p-6 overflow-y-auto">
+            <SheetHeader className="mb-6">
               <SheetTitle className="text-primary text-2xl font-bold tracking-tight">
                 Registrar Despesa
               </SheetTitle>
             </SheetHeader>
-            <ExpenseForm onSuccess={() => setOpen(false)} />
+            <UnifiedExpenseForm onSuccess={() => setOpen(false)} />
           </SheetContent>
         </Sheet>
       </div>
@@ -70,14 +86,13 @@ export default function Saidas() {
                 <TableHead className="font-semibold">Data</TableHead>
                 <TableHead className="font-semibold">Descrição</TableHead>
                 <TableHead className="font-semibold">Categoria</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="text-right font-semibold">Valor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {expenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
                     Nenhuma despesa encontrada.
                   </TableCell>
                 </TableRow>
@@ -98,20 +113,6 @@ export default function Saidas() {
                       >
                         {tx.category}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {tx.status === 'PAID' ? (
-                        <Badge className="bg-secondary/10 text-secondary hover:bg-secondary/20 border-0 font-medium">
-                          Pago
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-orange-600 border-orange-200 bg-orange-50 font-medium"
-                        >
-                          Pendente
-                        </Badge>
-                      )}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-foreground">
                       {formatCurrency(tx.amount)}

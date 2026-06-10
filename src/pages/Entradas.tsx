@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import useMainStore from '@/stores/main'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -13,21 +12,38 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import IncomeForm from '@/components/forms/IncomeForm'
+import { UnifiedEntryForm } from '@/components/financeiro/UnifiedEntryForm'
 import { Plus, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { getTransactions, TransactionRecord } from '@/services/transactions'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Entradas() {
-  const { transactions } = useMainStore()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([])
+
+  const loadData = async () => {
+    try {
+      const res = await getTransactions()
+      setTransactions(res)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+  useRealtime('transactions', () => {
+    loadData()
+  })
 
   const incomes = transactions.filter(
     (t) =>
-      t.type === 'INCOME' &&
-      (t.description.toLowerCase().includes(search.toLowerCase()) ||
-        t.category.toLowerCase().includes(search.toLowerCase()) ||
-        t.patientName?.toLowerCase().includes(search.toLowerCase())),
+      t.type === 'entry' &&
+      ((t.entry_type || '').toLowerCase().includes(search.toLowerCase()) ||
+        (t.patient || '').toLowerCase().includes(search.toLowerCase())),
   )
 
   return (
@@ -48,17 +64,16 @@ export default function Entradas() {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button className="rounded-full shadow-elevation hover:scale-105 transition-transform bg-secondary hover:bg-secondary/90 text-white h-10 px-6">
-              <Plus className="mr-2" size={18} />
-              Nova Entrada
+              <Plus className="mr-2" size={18} /> Nova Entrada
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-full sm:max-w-md p-6">
-            <SheetHeader>
+          <SheetContent side="right" className="w-full sm:max-w-md p-6 overflow-y-auto">
+            <SheetHeader className="mb-6">
               <SheetTitle className="text-secondary text-2xl font-bold tracking-tight">
                 Registrar Entrada
               </SheetTitle>
             </SheetHeader>
-            <IncomeForm onSuccess={() => setOpen(false)} />
+            <UnifiedEntryForm onSuccess={() => setOpen(false)} />
           </SheetContent>
         </Sheet>
       </div>
@@ -69,8 +84,8 @@ export default function Entradas() {
             <TableHeader className="bg-muted/30">
               <TableRow className="border-none">
                 <TableHead className="font-semibold">Data</TableHead>
-                <TableHead className="font-semibold">Descrição</TableHead>
-                <TableHead className="font-semibold">Categoria</TableHead>
+                <TableHead className="font-semibold">Tipo / Procedimento</TableHead>
+                <TableHead className="font-semibold">Médico</TableHead>
                 <TableHead className="font-semibold">Paciente</TableHead>
                 <TableHead className="text-right font-semibold">Valor</TableHead>
               </TableRow>
@@ -91,16 +106,19 @@ export default function Entradas() {
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {formatDate(tx.date)}
                     </TableCell>
-                    <TableCell className="font-medium text-foreground">{tx.description}</TableCell>
+                    <TableCell>
+                      <div className="font-medium text-foreground">{tx.entry_type}</div>
+                      <div className="text-xs text-muted-foreground">{tx.procedures?.[0]}</div>
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className="text-secondary border-secondary/20 bg-secondary/5 font-medium"
                       >
-                        {tx.category}
+                        {tx.doctor}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{tx.patientName || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">{tx.patient || '-'}</TableCell>
                     <TableCell className="text-right font-semibold text-secondary">
                       {formatCurrency(tx.amount)}
                     </TableCell>

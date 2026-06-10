@@ -20,9 +20,11 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { Switch } from '@/components/ui/switch'
+import { deleteCardMachine, createCardMachine } from '@/services/settings'
 
 export default function Configuracoes() {
   const [machines, setMachines] = useState<CardMachine[]>([])
+  const [newMachineName, setNewMachineName] = useState('')
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [newProc, setNewProc] = useState<Partial<Procedure>>({ active: true })
   const { toast } = useToast()
@@ -78,9 +80,56 @@ export default function Configuracoes() {
           <CardTitle>Maquininhas de Cartão</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="flex gap-4 items-end bg-muted/30 p-4 rounded-2xl border border-border">
+            <div className="flex-1">
+              <label className="text-xs font-semibold">Nova Maquininha</label>
+              <Input
+                value={newMachineName}
+                onChange={(e) => setNewMachineName(e.target.value)}
+                placeholder="Nome da maquininha"
+                className="bg-white rounded-xl h-10 mt-1 shadow-sm border-transparent"
+              />
+            </div>
+            <Button
+              onClick={async () => {
+                if (!newMachineName)
+                  return toast({ title: 'Preencha o nome', variant: 'destructive' })
+                try {
+                  await createCardMachine({ name: newMachineName, fees: {} })
+                  toast({ title: 'Maquininha adicionada' })
+                  setNewMachineName('')
+                  loadData()
+                } catch {
+                  toast({ title: 'Erro ao adicionar', variant: 'destructive' })
+                }
+              }}
+              className="rounded-xl font-bold h-10 bg-primary hover:bg-primary/90 shadow-md text-white"
+            >
+              Adicionar
+            </Button>
+          </div>
           {machines.map((machine) => (
-            <div key={machine.id} className="space-y-4">
-              <h3 className="font-bold text-lg text-primary">{machine.name}</h3>
+            <div key={machine.id} className="space-y-4 relative">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg text-primary">{machine.name}</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    if (!window.confirm('Excluir maquininha?')) return
+                    try {
+                      await deleteCardMachine(machine.id!)
+                      toast({ title: 'Maquininha removida' })
+                      loadData()
+                    } catch {
+                      toast({ title: 'Erro ao remover', variant: 'destructive' })
+                    }
+                  }}
+                  className="text-destructive hover:bg-destructive/10 rounded-lg"
+                >
+                  Excluir
+                </Button>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {Array.from({ length: 12 }).map((_, i) => {
                   const inst = i + 1
