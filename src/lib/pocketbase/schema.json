@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-09T23:45:31.038Z",
+  "generatedAt": "2026-06-10T01:05:41.191Z",
   "collections": [
     {
       "name": "users",
@@ -104,6 +104,150 @@
         {
           "name": "description",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "patient",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entry_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["CONSULTA/PROCEDIMENTO", "TAXA DE AGENDAMENTO", "ESTORNO DE TAXA"]
+        },
+        {
+          "name": "procedures",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "installments",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "card_fee_percent",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "card_fee_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "net_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "card_machine",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "card_machines"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "card_machines",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "fees",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "procedures_list",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "doctor",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Dr. Maykow", "Dra. Ana Cláudia"]
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["CONSULTAS", "DIU", "IMPLANON", "PROCEDIMENTOS"]
+        },
+        {
+          "name": "active",
+          "type": "bool",
           "required": false,
           "system": false
         },

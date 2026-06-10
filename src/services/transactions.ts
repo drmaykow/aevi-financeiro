@@ -4,10 +4,18 @@ export interface TransactionRecord {
   id?: string
   date: string
   type: 'entry' | 'exit'
+  entry_type?: 'CONSULTA/PROCEDIMENTO' | 'TAXA DE AGENDAMENTO' | 'ESTORNO DE TAXA'
   doctor?: string
+  patient?: string
+  procedures?: string[]
   amount: number
   payment_method?: 'PIX' | 'DINHEIRO' | 'CARTÃO DE CRÉDITO'
-  category?: 'ALUGUEL' | 'CONTA FIXA' | 'MATERIAL E INSUMO' | 'OUTRO'
+  card_machine?: string
+  installments?: number
+  card_fee_percent?: number
+  card_fee_amount?: number
+  net_amount?: number
+  category?: 'ALUGUEL' | 'CONTA FIXA' | 'MATERIAL E INSUMO' | 'OUTRO' | 'ESTORNO DE TAXA'
   description?: string
   created?: string
 }

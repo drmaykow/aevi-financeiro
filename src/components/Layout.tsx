@@ -13,7 +13,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { LayoutDashboard, TrendingUp, TrendingDown, PieChart, LogOut, Activity } from 'lucide-react'
+import {
+  LayoutDashboard,
+  TrendingUp,
+  TrendingDown,
+  PieChart,
+  LogOut,
+  Activity,
+  Settings,
+} from 'lucide-react'
 
 export default function Layout() {
   const { user, setUser } = useMainStore()
@@ -36,6 +44,7 @@ export default function Layout() {
         { title: 'Entradas', url: '/entradas', icon: TrendingUp },
         { title: 'Saídas', url: '/saidas', icon: TrendingDown },
         { title: 'Relatórios', url: '/relatorios', icon: PieChart },
+        { title: 'Configurações', url: '/configuracoes', icon: Settings },
       ]
     : [
         { title: 'Entradas', url: '/entradas', icon: TrendingUp },

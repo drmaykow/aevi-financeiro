@@ -12,6 +12,7 @@ import Relatorios from './pages/Relatorios'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import FinanceiroSecretaria from './pages/FinanceiroSecretaria'
+import Configuracoes from './pages/Configuracoes'
 
 const ProtectedRoute = ({
   children,
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/entradas" element={<Entradas />} />
               <Route path="/saidas" element={<Saidas />} />
               <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/configuracoes" element={<Configuracoes />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
