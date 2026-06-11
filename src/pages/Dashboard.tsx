@@ -7,8 +7,8 @@ import { ArrowDownRight, ArrowUpRight, Wallet, TrendingUp, TrendingDown } from '
 import { Area, AreaChart, XAxis, CartesianGrid } from 'recharts'
 
 const chartConfig = {
-  Receitas: { label: 'Receitas', color: 'hsl(var(--secondary))' },
-  Despesas: { label: 'Despesas', color: 'hsl(var(--primary))' },
+  Receitas: { label: 'Receitas', color: '#16a34a' },
+  Despesas: { label: 'Despesas', color: '#dc2626' },
 }
 
 export default function Dashboard() {
@@ -86,7 +86,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
         <Card className="rounded-2xl border-none shadow-subtle relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-secondary">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-green-600">
             <ArrowUpRight size={64} />
           </div>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -95,11 +95,11 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-secondary">{formatCurrency(monthlyIncome)}</div>
+            <div className="text-3xl font-bold text-green-600">{formatCurrency(monthlyIncome)}</div>
           </CardContent>
         </Card>
         <Card className="rounded-2xl border-none shadow-subtle relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-primary">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-red-600">
             <ArrowDownRight size={64} />
           </div>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -108,7 +108,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{formatCurrency(monthlyExpense)}</div>
+            <div className="text-3xl font-bold text-red-600">{formatCurrency(monthlyExpense)}</div>
           </CardContent>
         </Card>
       </div>
@@ -173,7 +173,7 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`p-2 rounded-full ${tx.type === 'INCOME' ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'}`}
+                      className={`p-2 rounded-full ${tx.type === 'INCOME' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
                     >
                       {tx.type === 'INCOME' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                     </div>
@@ -185,7 +185,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div
-                    className={`font-semibold text-sm ${tx.type === 'INCOME' ? 'text-secondary' : 'text-foreground'}`}
+                    className={`font-semibold text-sm ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}
                   >
                     {tx.type === 'INCOME' ? '+' : '-'}
                     {formatCurrency(tx.amount)}
