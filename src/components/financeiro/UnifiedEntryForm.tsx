@@ -82,14 +82,15 @@ export function UnifiedEntryForm({
   const calculations = useMemo(() => {
     let feePercent = 0
     let feeAmount = 0
-    let netAmount = watchAmount || 0
+    const amount = Number(watchAmount) || 0
+    let netAmount = amount
 
     if (watchPaymentMethod === 'CARTÃO DE CRÉDITO' && watchMachine && watchInstallments) {
       const machine = machines.find((m) => m.id === watchMachine)
       if (machine && machine.fees && machine.fees[watchInstallments]) {
-        feePercent = machine.fees[watchInstallments]
-        feeAmount = (watchAmount * feePercent) / 100
-        netAmount = watchAmount - feeAmount
+        feePercent = Number(machine.fees[watchInstallments]) || 0
+        feeAmount = (amount * feePercent) / 100
+        netAmount = amount - feeAmount
       }
     }
     return { feePercent, feeAmount, netAmount }
@@ -360,7 +361,7 @@ export function UnifiedEntryForm({
             <FormControl>
               <Input
                 type="number"
-                value={calculations.netAmount.toFixed(2)}
+                value={(Number(calculations.netAmount) || 0).toFixed(2)}
                 disabled
                 className="bg-secondary/10 border-transparent text-secondary font-bold"
               />
