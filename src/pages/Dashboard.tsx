@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
-import useMainStore from '@/stores/main'
+import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ArrowDownRight, ArrowUpRight, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
 import { Area, AreaChart, XAxis, CartesianGrid } from 'recharts'
+import { getTransactions, TransactionRecord } from '@/services/transactions'
+import { useRealtime } from '@/hooks/use-realtime'
 
 const chartConfig = {
   Receitas: { label: 'Receitas', color: '#16a34a' },
@@ -12,7 +13,24 @@ const chartConfig = {
 }
 
 export default function Dashboard() {
-  const { transactions } = useMainStore()
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([])
+
+  const loadData = async () => {
+    try {
+      const res = await getTransactions()
+      setTransactions(res)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useRealtime('transactions', () => {
+    loadData()
+  })
 
   const { totalBalance, monthlyIncome, monthlyExpense, chartData, recentTransactions } =
     useMemo(() => {
@@ -29,10 +47,10 @@ export default function Dashboard() {
         const d = new Date(tx.date)
         const isCurrentMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear
 
-        if (tx.type === 'INCOME') {
+        if (tx.type === 'entry') {
           tot += tx.amount
           if (isCurrentMonth) inc += tx.amount
-        } else {
+        } else if (tx.type === 'exit') {
           tot -= tx.amount
           if (isCurrentMonth) exp += tx.amount
         }
@@ -42,8 +60,8 @@ export default function Dashboard() {
         if (diffDays <= 30) {
           const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
           if (!dailyData[dateStr]) dailyData[dateStr] = { income: 0, expense: 0 }
-          if (tx.type === 'INCOME') dailyData[dateStr].income += tx.amount
-          else dailyData[dateStr].expense += tx.amount
+          if (tx.type === 'entry') dailyData[dateStr].income += tx.amount
+          else if (tx.type === 'exit') dailyData[dateStr].expense += tx.amount
         }
       })
 
@@ -173,21 +191,28 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`p-2 rounded-full ${tx.type === 'INCOME' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
+                      className={`p-2 rounded-full ${tx.type === 'entry' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
                     >
-                      {tx.type === 'INCOME' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                      {tx.type === 'entry' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                     </div>
                     <div>
-                      <p className="font-medium text-sm line-clamp-1">{tx.description}</p>
+                      <p className="font-medium text-sm line-clamp-1">
+                        {tx.type === 'entry'
+                          ? tx.entry_type || tx.doctor
+                          : tx.category === 'ESTORNO DE TAXA'
+                            ? 'Estorno de Taxa'
+                            : tx.description || tx.category}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(tx.date)} • {tx.category}
+                        {formatDate(tx.date)} •{' '}
+                        {tx.type === 'entry' ? tx.patient || tx.procedures?.[0] : tx.category}
                       </p>
                     </div>
                   </div>
                   <div
-                    className={`font-semibold text-sm ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}
+                    className={`font-semibold text-sm ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
                   >
-                    {tx.type === 'INCOME' ? '+' : '-'}
+                    {tx.type === 'entry' ? '+' : '-'}
                     {formatCurrency(tx.amount)}
                   </div>
                 </div>

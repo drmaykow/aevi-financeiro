@@ -1,5 +1,5 @@
 import { Outlet, Navigate, useLocation, Link, useNavigate } from 'react-router-dom'
-import useMainStore from '@/stores/main'
+import { useAuth } from '@/hooks/use-auth'
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 
 export default function Layout() {
-  const { user, setUser } = useMainStore()
+  const { user, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -32,10 +32,10 @@ export default function Layout() {
     return <Navigate to="/" replace />
   }
 
-  const isMedico = user.role === 'MEDICO'
+  const isMedico = user.role === 'medico'
 
   if (!isMedico && (location.pathname === '/dashboard' || location.pathname === '/relatorios')) {
-    return <Navigate to="/entradas" replace />
+    return <Navigate to="/financeiro" replace />
   }
 
   const navItems = isMedico
@@ -52,7 +52,7 @@ export default function Layout() {
       ]
 
   const handleLogout = () => {
-    setUser(null)
+    signOut()
     navigate('/')
   }
 
@@ -92,15 +92,15 @@ export default function Layout() {
           </SidebarContent>
           <SidebarFooter className="p-4">
             <div className="flex items-center gap-3 mb-4 px-2">
-              <div className="w-9 h-9 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-semibold">
-                {user.name.charAt(0)}
+              <div className="w-9 h-9 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-semibold uppercase">
+                {user.name ? user.name.charAt(0) : user.email.charAt(0)}
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-semibold leading-none text-foreground">
-                  {user.name}
+                  {user.name || user.email.split('@')[0]}
                 </span>
                 <span className="text-xs text-muted-foreground mt-1">
-                  {user.role === 'MEDICO' ? 'Médico' : 'Secretária'}
+                  {user.role === 'medico' ? 'Médico' : 'Secretária'}
                 </span>
               </div>
             </div>

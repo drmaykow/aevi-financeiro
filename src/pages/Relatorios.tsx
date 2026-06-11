@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import useMainStore from '@/stores/main'
+import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ChartContainer,
@@ -13,17 +12,37 @@ import { formatCurrency } from '@/lib/utils'
 import { Download } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, CartesianGrid } from 'recharts'
+import { getTransactions, TransactionRecord } from '@/services/transactions'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Relatorios() {
-  const { transactions } = useMainStore()
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([])
   const { toast } = useToast()
+
+  const loadData = async () => {
+    try {
+      const res = await getTransactions()
+      setTransactions(res)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useRealtime('transactions', () => {
+    loadData()
+  })
 
   const { donutData, barData, donutConfig, barConfig } = useMemo(() => {
     const expensesMap: Record<string, number> = {}
     transactions
-      .filter((t) => t.type === 'EXPENSE')
+      .filter((t) => t.type === 'exit')
       .forEach((tx) => {
-        expensesMap[tx.category] = (expensesMap[tx.category] || 0) + tx.amount
+        const cat = tx.category || 'Outros'
+        expensesMap[cat] = (expensesMap[cat] || 0) + tx.amount
       })
 
     const dConfig: Record<string, any> = {}
@@ -47,8 +66,8 @@ export default function Relatorios() {
       const d = new Date(tx.date)
       const mName = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
       if (monthsMap[mName]) {
-        if (tx.type === 'INCOME') monthsMap[mName].Receitas += tx.amount
-        else monthsMap[mName].Despesas += tx.amount
+        if (tx.type === 'entry') monthsMap[mName].Receitas += tx.amount
+        else if (tx.type === 'exit') monthsMap[mName].Despesas += tx.amount
       }
     })
 

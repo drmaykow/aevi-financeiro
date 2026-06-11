@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { MainProvider } from '@/stores/main'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
 import Index from './pages/Index'
 import Dashboard from './pages/Dashboard'
@@ -33,37 +32,35 @@ const ProtectedRoute = ({
 const App = () => (
   <AuthProvider>
     <BrowserRouter>
-      <MainProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route
-              path="/financeiro"
-              element={
-                <ProtectedRoute allowedRoles={['secretaria', 'medico']}>
-                  <FinanceiroSecretaria />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              element={
-                <ProtectedRoute allowedRoles={['medico']}>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/entradas" element={<Entradas />} />
-              <Route path="/saidas" element={<Saidas />} />
-              <Route path="/relatorios" element={<Relatorios />} />
-              <Route path="/configuracoes" element={<Configuracoes />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </TooltipProvider>
-      </MainProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route
+            path="/financeiro"
+            element={
+              <ProtectedRoute allowedRoles={['secretaria', 'medico']}>
+                <FinanceiroSecretaria />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={['medico']}>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/entradas" element={<Entradas />} />
+            <Route path="/saidas" element={<Saidas />} />
+            <Route path="/relatorios" element={<Relatorios />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </TooltipProvider>
     </BrowserRouter>
   </AuthProvider>
 )
