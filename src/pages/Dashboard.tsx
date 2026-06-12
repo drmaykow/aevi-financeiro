@@ -1,19 +1,54 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import { ArrowDownRight, ArrowUpRight, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
-import { Area, AreaChart, XAxis, CartesianGrid } from 'recharts'
+import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
+import { formatCurrency, cn } from '@/lib/utils'
+import { Minus, TrendingUp, TrendingDown, Users, DollarSign, Activity } from 'lucide-react'
+import { Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { getTransactions, TransactionRecord } from '@/services/transactions'
 import { useRealtime } from '@/hooks/use-realtime'
+import {
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  startOfQuarter,
+  endOfQuarter,
+  subQuarters,
+  startOfYear,
+  endOfYear,
+  subYears,
+  format,
+  isWithinInterval,
+} from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+type Period = 'month' | 'quarter' | 'year'
 
 const chartConfig = {
-  Receitas: { label: 'Receitas', color: '#16a34a' },
-  Despesas: { label: 'Despesas', color: '#dc2626' },
+  Faturamento: { label: 'Faturamento', color: '#1e3a8a' },
+  Lucro: { label: 'Lucro', color: '#16a34a' },
+}
+
+function Variation({ value, inverse = false }: { value: number; inverse?: boolean }) {
+  const isPositive = value > 0
+  const isNegative = value < 0
+
+  let color = 'text-muted-foreground'
+  if (isPositive) color = inverse ? 'text-red-600' : 'text-green-600'
+  else if (isNegative) color = inverse ? 'text-green-600' : 'text-red-600'
+
+  const Icon = isPositive ? TrendingUp : isNegative ? TrendingDown : Minus
+
+  return (
+    <div className={cn('flex items-center text-xs font-medium', color)}>
+      <Icon size={14} className="mr-1" />
+      {Math.abs(value).toFixed(1)}%
+    </div>
+  )
 }
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
+  const [period, setPeriod] = useState<Period>('month')
 
   const loadData = async () => {
     try {
@@ -32,192 +67,385 @@ export default function Dashboard() {
     loadData()
   })
 
-  const { totalBalance, monthlyIncome, monthlyExpense, chartData, recentTransactions } =
-    useMemo(() => {
-      const now = new Date()
-      const currentMonth = now.getMonth()
-      const currentYear = now.getFullYear()
+  const dashboardData = useMemo(() => {
+    const now = new Date()
+    let currentStart: Date, currentEnd: Date, previousStart: Date, previousEnd: Date
 
-      let inc = 0
-      let exp = 0
-      let tot = 0
-      const dailyData: Record<string, { income: number; expense: number }> = {}
+    if (period === 'month') {
+      currentStart = startOfMonth(now)
+      currentEnd = endOfMonth(now)
+      previousStart = startOfMonth(subMonths(now, 1))
+      previousEnd = endOfMonth(subMonths(now, 1))
+    } else if (period === 'quarter') {
+      currentStart = startOfQuarter(now)
+      currentEnd = endOfQuarter(now)
+      previousStart = startOfQuarter(subQuarters(now, 1))
+      previousEnd = endOfQuarter(subQuarters(now, 1))
+    } else {
+      currentStart = startOfYear(now)
+      currentEnd = endOfYear(now)
+      previousStart = startOfYear(subYears(now, 1))
+      previousEnd = endOfYear(subYears(now, 1))
+    }
 
-      transactions.forEach((tx) => {
-        const d = new Date(tx.date)
-        const isCurrentMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear
+    const currentTxs = transactions.filter((tx) =>
+      isWithinInterval(new Date(tx.date), { start: currentStart, end: currentEnd }),
+    )
 
-        if (tx.type === 'entry') {
-          tot += tx.amount
-          if (isCurrentMonth) inc += tx.amount
-        } else if (tx.type === 'exit') {
-          tot -= tx.amount
-          if (isCurrentMonth) exp += tx.amount
-        }
+    const previousTxs = transactions.filter((tx) =>
+      isWithinInterval(new Date(tx.date), { start: previousStart, end: previousEnd }),
+    )
 
-        const diffTime = Math.abs(now.getTime() - d.getTime())
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        if (diffDays <= 30) {
-          const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-          if (!dailyData[dateStr]) dailyData[dateStr] = { income: 0, expense: 0 }
-          if (tx.type === 'entry') dailyData[dateStr].income += tx.amount
-          else if (tx.type === 'exit') dailyData[dateStr].expense += tx.amount
-        }
-      })
+    const calcHealth = (txs: TransactionRecord[]) => {
+      const rev = txs.filter((t) => t.type === 'entry').reduce((sum, t) => sum + t.amount, 0)
+      const costs = txs.filter((t) => t.type === 'exit').reduce((sum, t) => sum + t.amount, 0)
+      const profit = rev - costs
+      const margin = rev > 0 ? (profit / rev) * 100 : 0
+      return { rev, costs, profit, margin }
+    }
 
-      const sortedDates = Object.keys(dailyData).sort((a, b) => {
-        const [da, ma] = a.split('/')
-        const [db, mb] = b.split('/')
-        return (
-          new Date(currentYear, Number(ma) - 1, Number(da)).getTime() -
-          new Date(currentYear, Number(mb) - 1, Number(db)).getTime()
+    const currentHealth = calcHealth(currentTxs)
+    const prevHealth = calcHealth(previousTxs)
+
+    const calcVar = (curr: number, prev: number) => {
+      if (prev === 0) return curr > 0 ? 100 : 0
+      return ((curr - prev) / Math.abs(prev)) * 100
+    }
+
+    const atendimentos = currentTxs.filter((t) => t.type === 'entry').length
+    const ticketMedio = atendimentos > 0 ? currentHealth.rev / atendimentos : 0
+
+    const drMaykowRev = currentTxs
+      .filter((t) => t.type === 'entry' && t.doctor === 'Dr. Maykow')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const draAnaRev = currentTxs
+      .filter((t) => t.type === 'entry' && t.doctor === 'Dra. Ana Cláudia')
+      .reduce((sum, t) => sum + t.amount, 0)
+
+    const drMaykowPct = currentHealth.rev > 0 ? (drMaykowRev / currentHealth.rev) * 100 : 0
+    const draAnaPct = currentHealth.rev > 0 ? (draAnaRev / currentHealth.rev) * 100 : 0
+
+    const isNewPatient = (procedures: any) => {
+      if (Array.isArray(procedures))
+        return procedures.some(
+          (p) => typeof p === 'string' && p.toLowerCase().includes('primeira consulta'),
         )
+      if (typeof procedures === 'string')
+        return procedures.toLowerCase().includes('primeira consulta')
+      return false
+    }
+
+    const pacientesNovas = currentTxs.filter(
+      (t) => t.type === 'entry' && isNewPatient(t.procedures),
+    ).length
+    const marketingCosts = currentTxs
+      .filter((t) => t.type === 'exit' && t.category === 'MARKETING')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const cac = pacientesNovas > 0 ? marketingCosts / pacientesNovas : null
+
+    return {
+      revenue: currentHealth.rev,
+      costs: currentHealth.costs,
+      profit: currentHealth.profit,
+      margin: currentHealth.margin,
+      revenueVar: calcVar(currentHealth.rev, prevHealth.rev),
+      costsVar: calcVar(currentHealth.costs, prevHealth.costs),
+      profitVar: calcVar(currentHealth.profit, prevHealth.profit),
+      marginVar: currentHealth.margin - prevHealth.margin,
+      atendimentos,
+      ticketMedio,
+      drMaykowRev,
+      draAnaRev,
+      drMaykowPct,
+      draAnaPct,
+      pacientesNovas,
+      cac,
+    }
+  }, [transactions, period])
+
+  const chartData = useMemo(() => {
+    const now = new Date()
+    const data = []
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(now, i)
+      const monthStart = startOfMonth(d)
+      const monthEnd = endOfMonth(d)
+      const monthTxs = transactions.filter((tx) =>
+        isWithinInterval(new Date(tx.date), { start: monthStart, end: monthEnd }),
+      )
+
+      const rev = monthTxs.filter((t) => t.type === 'entry').reduce((sum, t) => sum + t.amount, 0)
+      const costs = monthTxs.filter((t) => t.type === 'exit').reduce((sum, t) => sum + t.amount, 0)
+
+      const monthName = format(d, 'MMM', { locale: ptBR })
+      data.push({
+        name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+        Faturamento: rev,
+        Lucro: rev - costs,
       })
-
-      const cData = sortedDates.map((date) => ({
-        date,
-        Receitas: dailyData[date].income,
-        Despesas: dailyData[date].expense,
-      }))
-
-      return {
-        totalBalance: tot,
-        monthlyIncome: inc,
-        monthlyExpense: exp,
-        chartData: cData,
-        recentTransactions: transactions.slice(0, 5),
-      }
-    }, [transactions])
+    }
+    return data
+  }, [transactions])
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-2xl border-none shadow-subtle overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <Wallet size={64} />
-          </div>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Saldo Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">{formatCurrency(totalBalance)}</div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border-none shadow-subtle relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-green-600">
-            <ArrowUpRight size={64} />
-          </div>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Entradas do Mês
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">{formatCurrency(monthlyIncome)}</div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border-none shadow-subtle relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-red-600">
-            <ArrowDownRight size={64} />
-          </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+        <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+          {(['month', 'quarter', 'year'] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={cn(
+                'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+                period === p
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'hover:bg-background/50 hover:text-foreground',
+              )}
+            >
+              {p === 'month' ? 'Mês atual' : p === 'quarter' ? 'Trimestre' : 'Ano'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Block 1: Health Metrics */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="rounded-2xl border-none shadow-subtle">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Saídas do Mês
+              Faturamento Bruto
             </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600">{formatCurrency(monthlyExpense)}</div>
+            <div className="text-2xl font-bold text-foreground">
+              {formatCurrency(dashboardData.revenue)}
+            </div>
+            <Variation value={dashboardData.revenueVar} />
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-none shadow-subtle">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Custos Totais
+            </CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">
+              {formatCurrency(dashboardData.costs)}
+            </div>
+            <Variation value={dashboardData.costsVar} inverse />
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-none shadow-subtle">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Lucro Operacional
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={cn(
+                'text-2xl font-bold',
+                dashboardData.profit > 0
+                  ? 'text-green-600'
+                  : dashboardData.profit < 0
+                    ? 'text-red-600'
+                    : 'text-foreground',
+              )}
+            >
+              {formatCurrency(dashboardData.profit)}
+            </div>
+            <Variation value={dashboardData.profitVar} />
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-none shadow-subtle">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Margem Operacional
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={cn(
+                'text-2xl font-bold',
+                dashboardData.margin >= 30
+                  ? 'text-green-600'
+                  : dashboardData.margin >= 15
+                    ? 'text-yellow-600'
+                    : 'text-red-600',
+              )}
+            >
+              {dashboardData.margin.toFixed(1)}%
+            </div>
+            <Variation value={dashboardData.marginVar} />
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-7">
-        <Card className="md:col-span-4 rounded-2xl border-none shadow-subtle">
-          <CardHeader>
-            <CardTitle>Fluxo de Caixa (30 dias)</CardTitle>
+      {/* Block 2: Productivity Metrics */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="rounded-2xl border-none shadow-subtle">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total de Atendimentos
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="px-2">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorInc" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-Receitas)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--color-Receitas)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-Despesas)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--color-Despesas)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">{dashboardData.atendimentos}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-none shadow-subtle">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Ticket Médio
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">
+              {formatCurrency(dashboardData.ticketMedio)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-none shadow-subtle">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Faturamento por Médico
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Dr. Maykow</span>
+              <span className="text-sm text-muted-foreground">
+                {formatCurrency(dashboardData.drMaykowRev)} ({dashboardData.drMaykowPct.toFixed(1)}
+                %)
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Dra. Ana Cláudia</span>
+              <span className="text-sm text-muted-foreground">
+                {formatCurrency(dashboardData.draAnaRev)} ({dashboardData.draAnaPct.toFixed(1)}%)
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Block 3 & 4: Acquisition and Trend */}
+      <div className="grid gap-6 md:grid-cols-7">
+        <div className="md:col-span-2 space-y-4 flex flex-col">
+          <Card className="rounded-2xl border-none shadow-subtle flex-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Pacientes Novas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">
+                {dashboardData.pacientesNovas}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Primeira consulta</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-none shadow-subtle flex-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">CAC</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">
+                {dashboardData.cac !== null ? formatCurrency(dashboardData.cac) : '—'}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Custo de Aquisição de Cliente</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="md:col-span-5 rounded-2xl border-none shadow-subtle flex flex-col">
+          <CardHeader>
+            <CardTitle>Evolução (Últimos 6 meses)</CardTitle>
+          </CardHeader>
+          <CardContent className="px-2 flex-1">
+            <ChartContainer config={chartConfig} className="h-full min-h-[300px] w-full">
+              <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis
-                  dataKey="date"
+                  dataKey="name"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                   fontSize={12}
                   stroke="#888"
                 />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area
-                  type="monotone"
-                  dataKey="Receitas"
-                  stroke="var(--color-Receitas)"
-                  fill="url(#colorInc)"
-                  strokeWidth={2}
+                <YAxis
+                  tickFormatter={(val: number) =>
+                    new Intl.NumberFormat('pt-BR', {
+                      notation: 'compact',
+                      compactDisplay: 'short',
+                      maximumFractionDigits: 1,
+                    }).format(val)
+                  }
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  fontSize={12}
+                  stroke="#888"
+                  width={60}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="Despesas"
-                  stroke="var(--color-Despesas)"
-                  fill="url(#colorExp)"
-                  strokeWidth={2}
+                <ChartTooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="rounded-lg border bg-background p-3 shadow-md space-y-2">
+                          <p className="text-sm font-medium">{label}</p>
+                          {payload.map((entry: any, index: number) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: entry.color }}
+                              />
+                              <span className="text-sm text-muted-foreground">{entry.name}:</span>
+                              <span className="text-sm font-bold">
+                                {formatCurrency(entry.value as number)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
                 />
-              </AreaChart>
+                <Line
+                  type="monotone"
+                  dataKey="Faturamento"
+                  stroke="var(--color-Faturamento)"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Lucro"
+                  stroke="var(--color-Lucro)"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
             </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-3 rounded-2xl border-none shadow-subtle flex flex-col">
-          <CardHeader>
-            <CardTitle>Últimas Transações</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-auto">
-            <div className="space-y-3">
-              {recentTransactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-2 rounded-full ${tx.type === 'entry' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
-                    >
-                      {tx.type === 'entry' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm line-clamp-1">
-                        {tx.type === 'entry'
-                          ? tx.entry_type || tx.doctor
-                          : tx.category === 'ESTORNO DE TAXA'
-                            ? 'Estorno de Taxa'
-                            : tx.description || tx.category}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(tx.date)} •{' '}
-                        {tx.type === 'entry' ? tx.patient || tx.procedures?.[0] : tx.category}
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className={`font-semibold text-sm ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
-                  >
-                    {tx.type === 'entry' ? '+' : '-'}
-                    {formatCurrency(tx.amount)}
-                  </div>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>
