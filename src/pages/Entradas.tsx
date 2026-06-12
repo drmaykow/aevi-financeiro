@@ -11,7 +11,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { UnifiedEntryForm } from '@/components/financeiro/UnifiedEntryForm'
 import { Plus, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -122,7 +122,14 @@ export default function Entradas() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className="text-secondary border-secondary/20 bg-secondary/5 font-medium"
+                        className={cn(
+                          'font-medium',
+                          tx.doctor?.includes('Maykow')
+                            ? 'bg-[#1e3a8a]/10 text-[#1e3a8a] border-[#1e3a8a]/20'
+                            : tx.doctor?.includes('Ana')
+                              ? 'bg-[#800020]/10 text-[#800020] border-[#800020]/20'
+                              : 'text-secondary border-secondary/20 bg-secondary/5',
+                        )}
                       >
                         {tx.doctor}
                       </Badge>

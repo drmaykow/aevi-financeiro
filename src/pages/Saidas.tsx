@@ -114,13 +114,13 @@ export default function Saidas() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className="text-accent border-accent/20 bg-accent/5 font-medium"
+                        className="text-red-600 border-red-200 bg-red-50 font-medium"
                       >
                         {tx.category}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-semibold text-foreground">
-                      {formatCurrency(tx.amount)}
+                    <TableCell className="text-right font-semibold text-red-500">
+                      - {formatCurrency(Math.abs(tx.amount))}
                     </TableCell>
                   </TableRow>
                 ))

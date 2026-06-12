@@ -77,30 +77,30 @@ export default function Dashboard() {
 
   const dashboardData = useMemo(() => {
     const now = new Date()
+    const validTransactions = transactions.filter((tx) => new Date(tx.date) <= now)
     let currentStart: Date, currentEnd: Date, previousStart: Date, previousEnd: Date
+
+    currentEnd = now
 
     if (period === 'month') {
       currentStart = startOfMonth(now)
-      currentEnd = endOfMonth(now)
       previousStart = startOfMonth(subMonths(now, 1))
-      previousEnd = endOfMonth(subMonths(now, 1))
+      previousEnd = subMonths(now, 1)
     } else if (period === 'quarter') {
-      currentStart = startOfQuarter(now)
-      currentEnd = endOfQuarter(now)
-      previousStart = startOfQuarter(subQuarters(now, 1))
-      previousEnd = endOfQuarter(subQuarters(now, 1))
+      currentStart = subMonths(now, 3)
+      previousStart = subMonths(now, 6)
+      previousEnd = subMonths(now, 3)
     } else {
       currentStart = startOfYear(now)
-      currentEnd = endOfYear(now)
       previousStart = startOfYear(subYears(now, 1))
-      previousEnd = endOfYear(subYears(now, 1))
+      previousEnd = subYears(now, 1)
     }
 
-    const currentTxs = transactions.filter((tx) =>
+    const currentTxs = validTransactions.filter((tx) =>
       isWithinInterval(new Date(tx.date), { start: currentStart, end: currentEnd }),
     )
 
-    const previousTxs = transactions.filter((tx) =>
+    const previousTxs = validTransactions.filter((tx) =>
       isWithinInterval(new Date(tx.date), { start: previousStart, end: previousEnd }),
     )
 
@@ -181,12 +181,13 @@ export default function Dashboard() {
 
   const chartData = useMemo(() => {
     const now = new Date()
+    const validTransactions = transactions.filter((tx) => new Date(tx.date) <= now)
     const data = []
     for (let i = 5; i >= 0; i--) {
       const d = subMonths(now, i)
       const monthStart = startOfMonth(d)
-      const monthEnd = endOfMonth(d)
-      const monthTxs = transactions.filter((tx) =>
+      const monthEnd = i === 0 ? now : endOfMonth(d)
+      const monthTxs = validTransactions.filter((tx) =>
         isWithinInterval(new Date(tx.date), { start: monthStart, end: monthEnd }),
       )
 
