@@ -73,7 +73,12 @@ export default function Saidas() {
                 Registrar Despesa
               </SheetTitle>
             </SheetHeader>
-            <UnifiedExpenseForm onSuccess={() => setOpen(false)} />
+            <UnifiedExpenseForm
+              onSuccess={() => {
+                setOpen(false)
+                loadData()
+              }}
+            />
           </SheetContent>
         </Sheet>
       </div>

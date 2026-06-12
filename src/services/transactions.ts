@@ -11,7 +11,7 @@ export interface TransactionRecord {
   description?: string
   patient?: string
   entry_type?: string
-  procedures?: any
+  procedures?: string[]
   installments?: number
   card_fee_percent?: number
   card_fee_amount?: number

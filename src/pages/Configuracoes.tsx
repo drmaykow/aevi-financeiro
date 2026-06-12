@@ -18,13 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { Switch } from '@/components/ui/switch'
 import { deleteCardMachine, createCardMachine } from '@/services/settings'
 
 export default function Configuracoes() {
   const [machines, setMachines] = useState<CardMachine[]>([])
-  const [newMachineName, setNewMachineName] = useState('')
+  const [isMachineModalOpen, setIsMachineModalOpen] = useState(false)
+  const [editingMachine, setEditingMachine] = useState<Partial<CardMachine> | null>(null)
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [newProc, setNewProc] = useState<Partial<Procedure>>({ active: true })
   const { toast } = useToast()
@@ -39,15 +47,27 @@ export default function Configuracoes() {
     loadData()
   }, [])
 
-  const handleUpdateFee = async (machineId: string, inst: number, fee: number) => {
-    const machine = machines.find((m) => m.id === machineId)
-    if (!machine) return
+  const handleSaveMachine = async () => {
+    if (!editingMachine?.name || !editingMachine?.settlement_mode) {
+      return toast({ title: 'Preencha nome e modo de recebimento', variant: 'destructive' })
+    }
     try {
-      await updateCardMachine(machineId, { fees: { ...machine.fees, [inst]: fee } })
-      toast({ title: 'Taxa atualizada' })
+      const data = {
+        name: editingMachine.name,
+        settlement_mode: editingMachine.settlement_mode,
+        fees: editingMachine.fees || {},
+      }
+      if (editingMachine.id) {
+        await updateCardMachine(editingMachine.id, data)
+        toast({ title: 'Maquininha atualizada' })
+      } else {
+        await createCardMachine(data)
+        toast({ title: 'Maquininha adicionada' })
+      }
+      setIsMachineModalOpen(false)
       loadData()
     } catch {
-      toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      toast({ title: 'Erro ao salvar maquininha', variant: 'destructive' })
     }
   }
 
@@ -80,80 +100,92 @@ export default function Configuracoes() {
           <CardTitle>Maquininhas de Cartão</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex gap-4 items-end bg-muted/30 p-4 rounded-2xl border border-border">
-            <div className="flex-1">
-              <label className="text-xs font-semibold">Nova Maquininha</label>
-              <Input
-                value={newMachineName}
-                onChange={(e) => setNewMachineName(e.target.value)}
-                placeholder="Nome da maquininha"
-                className="bg-white rounded-xl h-10 mt-1 shadow-sm border-transparent"
-              />
-            </div>
+          <div className="flex justify-end">
             <Button
-              onClick={async () => {
-                if (!newMachineName)
-                  return toast({ title: 'Preencha o nome', variant: 'destructive' })
-                try {
-                  await createCardMachine({ name: newMachineName, fees: {} })
-                  toast({ title: 'Maquininha adicionada' })
-                  setNewMachineName('')
-                  loadData()
-                } catch {
-                  toast({ title: 'Erro ao adicionar', variant: 'destructive' })
-                }
+              onClick={() => {
+                setEditingMachine({
+                  name: '',
+                  settlement_mode: 'ANTECIPADO',
+                  fees: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, 0])),
+                })
+                setIsMachineModalOpen(true)
               }}
               className="rounded-xl font-bold h-10 bg-primary hover:bg-primary/90 shadow-md text-white"
             >
-              Adicionar
+              Adicionar Maquininha
             </Button>
           </div>
-          {machines.map((machine) => (
-            <div key={machine.id} className="space-y-4 relative">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-lg text-primary">{machine.name}</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    if (!window.confirm('Excluir maquininha?')) return
-                    try {
-                      await deleteCardMachine(machine.id!)
-                      toast({ title: 'Maquininha removida' })
-                      loadData()
-                    } catch {
-                      toast({ title: 'Erro ao remover', variant: 'destructive' })
-                    }
-                  }}
-                  className="text-destructive hover:bg-destructive/10 rounded-lg"
-                >
-                  Excluir
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {Array.from({ length: 12 }).map((_, i) => {
-                  const inst = i + 1
-                  return (
-                    <div
-                      key={inst}
-                      className="space-y-1 bg-muted/30 p-3 rounded-2xl border border-border"
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {machines.map((machine) => (
+              <div
+                key={machine.id}
+                className="bg-white p-5 rounded-2xl border border-border/50 shadow-sm space-y-4"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-bold text-lg text-primary">{machine.name}</h3>
+                    <p className="text-xs font-medium text-muted-foreground mt-1">
+                      {machine.settlement_mode === 'ANTECIPADO'
+                        ? 'Antecipado (D+1)'
+                        : 'Parcelado (Fluxo)'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingMachine({
+                          ...machine,
+                          fees: {
+                            ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, 0])),
+                            ...machine.fees,
+                          },
+                        })
+                        setIsMachineModalOpen(true)
+                      }}
+                      className="text-primary hover:bg-primary/10 rounded-lg h-8 px-2"
                     >
-                      <label className="text-xs font-semibold text-muted-foreground">
-                        {inst}x (%)
-                      </label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        defaultValue={machine.fees[inst] || 0}
-                        onBlur={(e) => handleUpdateFee(machine.id!, inst, Number(e.target.value))}
-                        className="bg-white rounded-xl h-10 border-transparent shadow-sm"
-                      />
-                    </div>
-                  )
-                })}
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        if (!window.confirm('Excluir maquininha?')) return
+                        try {
+                          await deleteCardMachine(machine.id!)
+                          toast({ title: 'Maquininha removida' })
+                          loadData()
+                        } catch {
+                          toast({ title: 'Erro ao remover', variant: 'destructive' })
+                        }
+                      }}
+                      className="text-destructive hover:bg-destructive/10 rounded-lg h-8 px-2"
+                    >
+                      Excluir
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const inst = i + 1
+                    return (
+                      <div
+                        key={inst}
+                        className="text-center bg-muted/30 p-1.5 rounded-lg border border-border"
+                      >
+                        <div className="text-[10px] font-semibold text-muted-foreground">
+                          {inst}x
+                        </div>
+                        <div className="text-xs font-bold">{machine.fees[inst] || 0}%</div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -244,6 +276,91 @@ export default function Configuracoes() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isMachineModalOpen} onOpenChange={setIsMachineModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingMachine?.id ? 'Editar' : 'Nova'} Maquininha</DialogTitle>
+          </DialogHeader>
+          {editingMachine && (
+            <div className="space-y-6 py-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">Nome</label>
+                  <Input
+                    value={editingMachine.name || ''}
+                    onChange={(e) => setEditingMachine({ ...editingMachine, name: e.target.value })}
+                    placeholder="Ex: Stone, PagSeguro"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">Modo de Recebimento</label>
+                  <Select
+                    value={editingMachine.settlement_mode}
+                    onValueChange={(v: 'ANTECIPADO' | 'PARCELADO') =>
+                      setEditingMachine({ ...editingMachine, settlement_mode: v })
+                    }
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Selecione o modo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ANTECIPADO">ANTECIPADO (D+1 ou similar)</SelectItem>
+                      <SelectItem value="PARCELADO">PARCELADO (Fluxo D+30, D+60)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-3 text-primary">Taxas por Parcela (%)</h4>
+                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const inst = i + 1
+                    return (
+                      <div
+                        key={inst}
+                        className="space-y-1.5 bg-muted/20 p-2 rounded-xl border border-border"
+                      >
+                        <label className="text-xs font-semibold text-muted-foreground block text-center">
+                          {inst}x
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editingMachine.fees?.[inst] ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value ? Number(e.target.value) : 0
+                            setEditingMachine({
+                              ...editingMachine,
+                              fees: { ...(editingMachine.fees || {}), [inst]: val },
+                            })
+                          }}
+                          className="h-8 text-center rounded-lg bg-white shadow-sm border-transparent"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsMachineModalOpen(false)}
+                  className="rounded-xl"
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveMachine} className="rounded-xl font-bold">
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

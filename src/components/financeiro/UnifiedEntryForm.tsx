@@ -22,6 +22,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 const getLocalDate = () => {
   const today = new Date()
@@ -35,7 +39,7 @@ const entrySchema = z.object({
   entry_type: z.enum(['CONSULTA/PROCEDIMENTO', 'TAXA DE AGENDAMENTO']),
   doctor: z.string().min(1, 'Médico é obrigatório'),
   patient: z.string().min(1, 'Paciente é obrigatório'),
-  procedures: z.string().optional(),
+  procedures: z.array(z.string()).optional(),
   payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
   card_machine: z.string().optional(),
   installments: z.coerce.number().min(1).max(12).optional(),
@@ -72,7 +76,7 @@ export function UnifiedEntryForm({
       entry_type: (defaultEntryType as any) || 'CONSULTA/PROCEDIMENTO',
       doctor: '',
       patient: '',
-      procedures: '',
+      procedures: [],
       payment_method: 'PIX',
       card_machine: '',
       installments: 1,
@@ -111,7 +115,7 @@ export function UnifiedEntryForm({
         ...data,
         type: 'entry',
         date: data.date + ' 12:00:00.000Z',
-        procedures: data.procedures ? [data.procedures] : [],
+        procedures: data.procedures || [],
         card_fee_percent: calculations.feePercent,
         card_fee_amount: calculations.feeAmount,
         net_amount: calculations.netAmount,
@@ -212,25 +216,75 @@ export function UnifiedEntryForm({
             name="procedures"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Procedimento / Consulta</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger className="bg-muted/50 border-transparent focus:ring-secondary">
-                      <SelectValue placeholder="Selecione o procedimento..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {filteredProcedures.map((p) => (
-                      <SelectItem key={p.id} value={p.name}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Procedimentos / Consultas</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          'w-full justify-between h-auto min-h-10 px-3 py-2 bg-muted/50 border-transparent hover:bg-muted/70',
+                          !field.value?.length && 'text-muted-foreground',
+                        )}
+                      >
+                        {field.value && field.value.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {field.value.map((val) => (
+                              <Badge
+                                key={val}
+                                variant="secondary"
+                                className="font-normal bg-secondary/10 text-secondary border-secondary/20 hover:bg-secondary/20"
+                              >
+                                {val}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          'Selecione os procedimentos...'
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <div className="max-h-[240px] overflow-y-auto p-1">
+                      {filteredProcedures.length === 0 ? (
+                        <div className="p-3 text-sm text-muted-foreground text-center">
+                          Nenhum procedimento encontrado.
+                        </div>
+                      ) : (
+                        filteredProcedures.map((p) => {
+                          const isSelected = field.value?.includes(p.name)
+                          return (
+                            <div
+                              key={p.id}
+                              className={cn(
+                                'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground',
+                                isSelected && 'bg-accent/50 font-medium',
+                              )}
+                              onClick={() => {
+                                const current = field.value || []
+                                const updated = isSelected
+                                  ? current.filter((val) => val !== p.name)
+                                  : [...current, p.name]
+                                field.onChange(updated)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4 text-secondary',
+                                  isSelected ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              {p.name}
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <FormMessage />
               </FormItem>
             )}

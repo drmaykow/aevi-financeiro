@@ -3,6 +3,7 @@ import pb from '@/lib/pocketbase/client'
 export interface CardMachine {
   id?: string
   name: string
+  settlement_mode?: 'ANTECIPADO' | 'PARCELADO'
   fees: Record<string, number>
 }
 

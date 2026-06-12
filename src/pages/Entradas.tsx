@@ -73,7 +73,12 @@ export default function Entradas() {
                 Registrar Entrada
               </SheetTitle>
             </SheetHeader>
-            <UnifiedEntryForm onSuccess={() => setOpen(false)} />
+            <UnifiedEntryForm
+              onSuccess={() => {
+                setOpen(false)
+                loadData()
+              }}
+            />
           </SheetContent>
         </Sheet>
       </div>
@@ -108,7 +113,11 @@ export default function Entradas() {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium text-foreground">{tx.entry_type}</div>
-                      <div className="text-xs text-muted-foreground">{tx.procedures?.[0]}</div>
+                      {tx.procedures && tx.procedures.length > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          {tx.procedures.join(', ')}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge
