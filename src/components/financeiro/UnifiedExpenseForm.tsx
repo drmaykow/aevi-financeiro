@@ -24,6 +24,14 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 
+const getLocalDate = () => {
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 const expenseSchema = z
   .object({
     category: z.enum([
@@ -97,7 +105,7 @@ export function UnifiedExpenseForm({
       category: 'OUTRO',
       description: '',
       amount: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDate(),
       is_recurring: false,
       doctor: '',
       patient: '',

@@ -21,6 +21,14 @@ import {
 import useMainStore from '@/stores/main'
 import { useToast } from '@/hooks/use-toast'
 
+const getLocalDate = () => {
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 const expenseSchema = z.object({
   description: z.string().min(3, 'Descrição é obrigatória'),
   amount: z.coerce.number().positive('Valor deve ser maior que zero'),
@@ -40,7 +48,7 @@ export default function ExpenseForm({ onSuccess }: { onSuccess: () => void }) {
     defaultValues: {
       description: '',
       amount: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDate(),
       category: '',
       status: 'PAID',
     },

@@ -9,7 +9,7 @@ import {
   deleteTransaction,
   TransactionRecord,
 } from '@/services/transactions'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import { ConsultaForm } from '@/components/financeiro/ConsultaForm'
 import { TaxaForm } from '@/components/financeiro/TaxaForm'
 import { NovaSaidaForm } from '@/components/financeiro/NovaSaidaForm'
@@ -102,62 +102,79 @@ export default function FinanceiroSecretaria() {
 
         <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 shadow-elevation">
           <h3 className="text-lg font-bold mb-4 text-foreground">Últimos Lançamentos</h3>
-          {transactions.length === 0 ? (
+          {transactions.filter(
+            (tx) =>
+              tx.type === 'entry' || (tx.type === 'exit' && tx.category === 'ESTORNO DE TAXA'),
+          ).length === 0 ? (
             <p className="text-center text-muted-foreground py-4">Nenhum lançamento encontrado.</p>
           ) : (
             <div className="space-y-3">
-              {transactions.slice(0, 20).map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex justify-between items-center p-3 bg-white rounded-2xl shadow-sm border border-border/50"
-                >
-                  <div>
-                    <p className="font-bold text-sm">
-                      {tx.type === 'entry'
-                        ? tx.entry_type || tx.doctor
-                        : tx.category === 'ESTORNO DE TAXA'
-                          ? '↩️ Estorno de Taxa'
-                          : tx.category}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{tx.patient || tx.description}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`font-bold ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
-                    >
-                      {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
-                    </span>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="rounded-3xl">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que quer apagar este lançamento?
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="rounded-full">Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
-                            className="bg-destructive text-white rounded-full hover:bg-destructive/90"
+              {transactions
+                .filter(
+                  (tx) =>
+                    tx.type === 'entry' ||
+                    (tx.type === 'exit' && tx.category === 'ESTORNO DE TAXA'),
+                )
+                .slice(0, 20)
+                .map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="flex justify-between items-center p-3 bg-white rounded-2xl shadow-sm border border-border/50"
+                  >
+                    <div className="flex-1 min-w-0 pr-4">
+                      <p className="font-bold text-sm truncate">
+                        {tx.type === 'entry'
+                          ? tx.entry_type || tx.doctor
+                          : tx.category === 'ESTORNO DE TAXA'
+                            ? '↩️ Estorno de Taxa'
+                            : tx.category}
+                      </p>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-xs text-muted-foreground truncate">
+                          {tx.patient || tx.description}
+                        </span>
+                        <span className="text-xs font-medium text-muted-foreground/70 whitespace-nowrap ml-2">
+                          {formatDate(tx.date)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 whitespace-nowrap">
+                      <span
+                        className={`font-bold ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
+                      >
+                        {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
+                      </span>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
                           >
-                            Apagar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            <Trash2 size={16} />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-3xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que quer apagar este lançamento?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-full">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
+                              className="bg-destructive text-white rounded-full hover:bg-destructive/90"
+                            >
+                              Apagar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>

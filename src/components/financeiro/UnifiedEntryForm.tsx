@@ -23,6 +23,14 @@ import {
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
 
+const getLocalDate = () => {
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 const entrySchema = z.object({
   entry_type: z.enum(['CONSULTA/PROCEDIMENTO', 'TAXA DE AGENDAMENTO']),
   doctor: z.string().min(1, 'Médico é obrigatório'),
@@ -69,7 +77,7 @@ export function UnifiedEntryForm({
       card_machine: '',
       installments: 1,
       amount: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDate(),
     },
   })
 
