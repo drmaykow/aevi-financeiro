@@ -1,6 +1,12 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Minus, TrendingUp, TrendingDown, Users, DollarSign, Activity } from 'lucide-react'
@@ -100,7 +106,9 @@ export default function Dashboard() {
 
     const calcHealth = (txs: TransactionRecord[]) => {
       const rev = txs
-        .filter((t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter))
+        .filter(
+          (t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter),
+        )
         .reduce((sum, t) => sum + t.amount, 0)
       const costs = txs.filter((t) => t.type === 'exit').reduce((sum, t) => sum + t.amount, 0)
       const profit = rev - costs
@@ -117,7 +125,7 @@ export default function Dashboard() {
     }
 
     const entries = currentTxs.filter(
-      (t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter)
+      (t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter),
     )
     const atendimentos = entries.length
     const ticketMedio = atendimentos > 0 ? currentHealth.rev / atendimentos : 0
@@ -129,7 +137,9 @@ export default function Dashboard() {
       .filter((t) => t.type === 'entry' && t.doctor === 'Dra. Ana Cláudia')
       .reduce((sum, t) => sum + t.amount, 0)
 
-    const totalRev = currentTxs.filter((t) => t.type === 'entry').reduce((sum, t) => sum + t.amount, 0)
+    const totalRev = currentTxs
+      .filter((t) => t.type === 'entry')
+      .reduce((sum, t) => sum + t.amount, 0)
     const drMaykowPct = totalRev > 0 ? (drMaykowRev / totalRev) * 100 : 0
     const draAnaPct = totalRev > 0 ? (draAnaRev / totalRev) * 100 : 0
 
@@ -181,7 +191,9 @@ export default function Dashboard() {
       )
 
       const rev = monthTxs
-        .filter((t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter))
+        .filter(
+          (t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter),
+        )
         .reduce((sum, t) => sum + t.amount, 0)
       const costs = monthTxs.filter((t) => t.type === 'exit').reduce((sum, t) => sum + t.amount, 0)
 
@@ -218,15 +230,16 @@ export default function Dashboard() {
                 key={p}
                 onClick={() => setPeriod(p)}
                 className={cn(
-                'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-                period === p
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'hover:bg-background/50 hover:text-foreground',
-              )}
-            >
-              {p === 'month' ? 'Mês atual' : p === 'quarter' ? 'Trimestre' : 'Ano'}
-            </button>
-          ))}
+                  'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+                  period === p
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'hover:bg-background/50 hover:text-foreground',
+                )}
+              >
+                {p === 'month' ? 'Mês atual' : p === 'quarter' ? 'Trimestre' : 'Ano'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
