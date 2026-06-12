@@ -6,17 +6,32 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createTransaction } from '@/services/transactions'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 
 const schema = z
   .object({
     date: z.string().min(1, 'Preencha este campo'),
-    category: z.enum(['ALUGUEL', 'CONTA FIXA', 'MATERIAL E INSUMO', 'OUTRO', 'ESTORNO DE TAXA'], {
-      required_error: 'Preencha este campo',
-    }),
+    category: z.enum(
+      [
+        'ALUGUEL',
+        'LUZ',
+        'INTERNET',
+        'MARKETING',
+        'CONDOMINIO',
+        'MATERIAL E INSUMO',
+        'CONTADOR',
+        'IMPOSTOS/TAXAS',
+        'SECRETARIA',
+        'ESTORNO DE TAXA',
+        'OUTRO',
+      ],
+      { required_error: 'Preencha este campo' },
+    ),
     amount: z.coerce.number().min(0.01, 'Preencha este campo'),
     description: z.string().optional(),
     doctor: z.string().optional(),
     patient: z.string().optional(),
+    is_recurring: z.boolean().optional(),
   })
   .refine(
     (data) => {
@@ -77,6 +92,7 @@ export function NovaSaidaForm({
       description: '',
       doctor: '',
       patient: '',
+      is_recurring: false,
     },
   })
 
@@ -84,6 +100,24 @@ export function NovaSaidaForm({
   const doc = form.watch('doctor')
   const amount = form.watch('amount')
   const desc = form.watch('description')
+
+  const { user } = useAuth()
+  const allowedCategories =
+    user?.role === 'secretaria'
+      ? ['ESTORNO DE TAXA', 'OUTRO']
+      : [
+          'ALUGUEL',
+          'LUZ',
+          'INTERNET',
+          'MARKETING',
+          'CONDOMINIO',
+          'MATERIAL E INSUMO',
+          'CONTADOR',
+          'IMPOSTOS/TAXAS',
+          'SECRETARIA',
+          'ESTORNO DE TAXA',
+          'OUTRO',
+        ]
 
   const onSubmit = async (data: z.infer<typeof schema>) => {
     try {
@@ -95,7 +129,7 @@ export function NovaSaidaForm({
         description: data.description || '',
         doctor: data.doctor,
         patient: data.patient,
-        entry_type: data.category === 'ESTORNO DE TAXA' ? 'ESTORNO DE TAXA' : undefined,
+        is_recurring: data.is_recurring,
       })
       toast({
         title: 'Lançamento salvo com sucesso ✓',
@@ -108,6 +142,7 @@ export function NovaSaidaForm({
         description: '',
         doctor: '',
         patient: '',
+        is_recurring: false,
       })
       onSuccess()
     } catch (e) {
@@ -152,7 +187,7 @@ export function NovaSaidaForm({
           Categoria
         </Label>
         <div className="grid grid-cols-2 gap-3 mt-1">
-          {['ALUGUEL', 'CONTA FIXA', 'MATERIAL E INSUMO', 'OUTRO', 'ESTORNO DE TAXA'].map((c) => (
+          {allowedCategories.map((c) => (
             <Button
               key={c}
               type="button"
@@ -283,6 +318,18 @@ export function NovaSaidaForm({
           )}
         </div>
       )}
+
+      <div className="flex items-center gap-2 mt-4 p-4 border rounded-xl bg-white/80">
+        <input
+          type="checkbox"
+          id="is_recurring"
+          {...form.register('is_recurring')}
+          className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+        />
+        <Label htmlFor="is_recurring" className="font-semibold cursor-pointer text-sm">
+          Conta Fixa (Repetir para o próximo mês)
+        </Label>
+      </div>
 
       <Button
         type="submit"

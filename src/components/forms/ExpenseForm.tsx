@@ -50,7 +50,7 @@ export default function ExpenseForm({ onSuccess }: { onSuccess: () => void }) {
     addTransaction({
       ...data,
       type: 'EXPENSE',
-      date: new Date(data.date).toISOString(),
+      date: data.date + ' 12:00:00.000Z',
     })
     toast({ title: 'Sucesso', description: 'Despesa registrada com sucesso' })
     form.reset()

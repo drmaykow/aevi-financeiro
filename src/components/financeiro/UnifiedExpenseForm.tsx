@@ -20,14 +20,46 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 
-const expenseSchema = z.object({
-  category: z.enum(['ALUGUEL', 'CONTA FIXA', 'MATERIAL E INSUMO', 'OUTRO']),
-  description: z.string().min(1, 'Descrição é obrigatória'),
-  amount: z.coerce.number().positive('Valor deve ser maior que zero'),
-  date: z.string().min(1, 'Data é obrigatória'),
-})
+const expenseSchema = z
+  .object({
+    category: z.enum([
+      'ALUGUEL',
+      'LUZ',
+      'INTERNET',
+      'MARKETING',
+      'CONDOMINIO',
+      'MATERIAL E INSUMO',
+      'CONTADOR',
+      'IMPOSTOS/TAXAS',
+      'SECRETARIA',
+      'ESTORNO DE TAXA',
+      'OUTRO',
+    ]),
+    description: z.string().min(1, 'Descrição é obrigatória'),
+    amount: z.coerce.number().positive('Valor deve ser maior que zero'),
+    date: z.string().min(1, 'Data é obrigatória'),
+    is_recurring: z.boolean().optional(),
+    doctor: z.string().optional(),
+    patient: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.category === 'ESTORNO DE TAXA' && !data.doctor) return false
+      return true
+    },
+    { message: 'Médico é obrigatório para estorno', path: ['doctor'] },
+  )
+  .refine(
+    (data) => {
+      if (data.category === 'ESTORNO DE TAXA' && !data.patient) return false
+      return true
+    },
+    { message: 'Paciente é obrigatório para estorno', path: ['patient'] },
+  )
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>
 
@@ -39,7 +71,25 @@ export function UnifiedExpenseForm({
   onCancel?: () => void
 }) {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+
+  const allowedCategories =
+    user?.role === 'secretaria'
+      ? ['ESTORNO DE TAXA', 'OUTRO']
+      : [
+          'ALUGUEL',
+          'LUZ',
+          'INTERNET',
+          'MARKETING',
+          'CONDOMINIO',
+          'MATERIAL E INSUMO',
+          'CONTADOR',
+          'IMPOSTOS/TAXAS',
+          'SECRETARIA',
+          'ESTORNO DE TAXA',
+          'OUTRO',
+        ]
 
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema),
@@ -48,6 +98,9 @@ export function UnifiedExpenseForm({
       description: '',
       amount: 0,
       date: new Date().toISOString().split('T')[0],
+      is_recurring: false,
+      doctor: '',
+      patient: '',
     },
   })
 
@@ -57,7 +110,8 @@ export function UnifiedExpenseForm({
       await createTransaction({
         ...data,
         type: 'exit',
-        date: new Date(data.date).toISOString(),
+        date: data.date + ' 12:00:00.000Z',
+        is_recurring: data.is_recurring,
       })
       toast({ title: 'Sucesso', description: 'Saída registrada com sucesso!' })
       form.reset()
@@ -89,16 +143,90 @@ export function UnifiedExpenseForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="ALUGUEL">Aluguel</SelectItem>
-                  <SelectItem value="CONTA FIXA">Conta Fixa</SelectItem>
-                  <SelectItem value="MATERIAL E INSUMO">Material e Insumo</SelectItem>
-                  <SelectItem value="OUTRO">Outro</SelectItem>
+                  {allowedCategories.includes('ALUGUEL') && (
+                    <SelectItem value="ALUGUEL">Aluguel</SelectItem>
+                  )}
+                  {allowedCategories.includes('LUZ') && <SelectItem value="LUZ">Luz</SelectItem>}
+                  {allowedCategories.includes('INTERNET') && (
+                    <SelectItem value="INTERNET">Internet</SelectItem>
+                  )}
+                  {allowedCategories.includes('MARKETING') && (
+                    <SelectItem value="MARKETING">Marketing</SelectItem>
+                  )}
+                  {allowedCategories.includes('CONDOMINIO') && (
+                    <SelectItem value="CONDOMINIO">Condomínio</SelectItem>
+                  )}
+                  {allowedCategories.includes('MATERIAL E INSUMO') && (
+                    <SelectItem value="MATERIAL E INSUMO">Material e Insumo</SelectItem>
+                  )}
+                  {allowedCategories.includes('CONTADOR') && (
+                    <SelectItem value="CONTADOR">Contador</SelectItem>
+                  )}
+                  {allowedCategories.includes('IMPOSTOS/TAXAS') && (
+                    <SelectItem value="IMPOSTOS/TAXAS">Impostos/Taxas</SelectItem>
+                  )}
+                  {allowedCategories.includes('SECRETARIA') && (
+                    <SelectItem value="SECRETARIA">Secretária</SelectItem>
+                  )}
+                  {allowedCategories.includes('OUTRO') && (
+                    <SelectItem value="OUTRO">Outro</SelectItem>
+                  )}
+                  {allowedCategories.includes('ESTORNO DE TAXA') && (
+                    <SelectItem value="ESTORNO DE TAXA">Estorno de Taxa</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        {form.watch('category') === 'ESTORNO DE TAXA' && (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="doctor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Médico</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-muted/50 border-transparent focus:ring-primary">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Dr. Maykow">Dr. Maykow</SelectItem>
+                      <SelectItem value="Dra. Ana Cláudia">Dra. Ana Cláudia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="patient"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Paciente</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Nome do paciente"
+                      className="bg-muted/50 border-transparent focus-visible:ring-primary"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
 
         <FormField
           control={form.control}
@@ -108,7 +236,11 @@ export function UnifiedExpenseForm({
               <FormLabel>Descrição</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Descreva a despesa"
+                  placeholder={
+                    form.watch('category') === 'ESTORNO DE TAXA'
+                      ? 'Motivo do estorno...'
+                      : 'Descreva a despesa'
+                  }
                   className="bg-muted/50 border-transparent focus-visible:ring-primary"
                   {...field}
                 />
@@ -154,6 +286,18 @@ export function UnifiedExpenseForm({
               </FormItem>
             )}
           />
+        </div>
+
+        <div className="flex items-center gap-2 mt-4 p-4 border rounded-xl bg-white/80">
+          <input
+            type="checkbox"
+            id="is_recurring_unified"
+            {...form.register('is_recurring')}
+            className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <Label htmlFor="is_recurring_unified" className="font-semibold cursor-pointer text-sm">
+            Conta Fixa (Repetir para o próximo mês)
+          </Label>
         </div>
 
         <div className="flex gap-4 pt-4">

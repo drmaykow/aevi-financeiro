@@ -17,6 +17,7 @@ export interface TransactionRecord {
   card_fee_amount?: number
   net_amount?: number
   card_machine?: string
+  is_recurring?: boolean
   created?: string
   expand?: {
     card_machine?: {
@@ -34,16 +35,24 @@ export const getDailyTransactions = async () => {
   const filter = `date >= "${start.toISOString()}" && date <= "${end.toISOString()}"`
   const items = await pb.collection('transactions').getFullList<TransactionRecord>({
     filter,
-    sort: '-date',
+    sort: '-created',
     expand: 'card_machine',
   })
   return { items }
 }
 
+export const getRecentTransactions = async (limit = 20) => {
+  const result = await pb.collection('transactions').getList<TransactionRecord>(1, limit, {
+    sort: '-created',
+    expand: 'card_machine',
+  })
+  return { items: result.items }
+}
+
 export const getTransactions = async () => {
   return pb
     .collection('transactions')
-    .getFullList<TransactionRecord>({ sort: '-date', expand: 'card_machine' })
+    .getFullList<TransactionRecord>({ sort: '-created', expand: 'card_machine' })
 }
 
 export const createTransaction = (data: Partial<TransactionRecord>) =>

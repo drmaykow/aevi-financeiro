@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-11T22:28:27.167Z",
+  "generatedAt": "2026-06-12T00:57:57.489Z",
   "collections": [
     {
       "name": "users",
@@ -101,18 +101,23 @@
           "system": false,
           "selectValues": [
             "ALUGUEL",
-            "CONTA FIXA",
+            "LUZ",
+            "INTERNET",
+            "MARKETING",
+            "CONDOMINIO",
             "MATERIAL E INSUMO",
-            "OUTRO",
+            "CONTADOR",
+            "IMPOSTOS/TAXAS",
+            "SECRETARIA",
             "ESTORNO DE TAXA",
+            "OUTRO",
             "Consulta",
             "Procedimento",
             "Exame",
             "Outros",
             "Aluguel",
             "Suprimentos",
-            "Folha de Pagamento",
-            "Marketing"
+            "Folha de Pagamento"
           ]
         },
         {
@@ -146,7 +151,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["CONSULTA/PROCEDIMENTO", "TAXA DE AGENDAMENTO", "ESTORNO DE TAXA"]
+          "selectValues": ["CONSULTA/PROCEDIMENTO", "TAXA DE AGENDAMENTO"]
         },
         {
           "name": "procedures",
@@ -184,6 +189,12 @@
           "required": false,
           "system": false,
           "collectionRef": "card_machines"
+        },
+        {
+          "name": "is_recurring",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 
 const entrySchema = z.object({
-  entry_type: z.enum(['CONSULTA/PROCEDIMENTO', 'TAXA DE AGENDAMENTO', 'ESTORNO DE TAXA']),
+  entry_type: z.enum(['CONSULTA/PROCEDIMENTO', 'TAXA DE AGENDAMENTO']),
   doctor: z.string().min(1, 'Médico é obrigatório'),
   patient: z.string().min(1, 'Paciente é obrigatório'),
   procedures: z.string().optional(),
@@ -102,7 +102,7 @@ export function UnifiedEntryForm({
       await createTransaction({
         ...data,
         type: 'entry',
-        date: new Date(data.date).toISOString(),
+        date: data.date + ' 12:00:00.000Z',
         procedures: data.procedures ? [data.procedures] : [],
         card_fee_percent: calculations.feePercent,
         card_fee_amount: calculations.feeAmount,
@@ -147,7 +147,6 @@ export function UnifiedEntryForm({
                   <SelectContent>
                     <SelectItem value="CONSULTA/PROCEDIMENTO">Consulta / Procedimento</SelectItem>
                     <SelectItem value="TAXA DE AGENDAMENTO">Taxa de Agendamento</SelectItem>
-                    <SelectItem value="ESTORNO DE TAXA">Estorno de Taxa</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

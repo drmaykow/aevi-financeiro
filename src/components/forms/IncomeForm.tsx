@@ -50,7 +50,7 @@ export default function IncomeForm({ onSuccess }: { onSuccess: () => void }) {
     addTransaction({
       ...data,
       type: 'INCOME',
-      date: new Date(data.date).toISOString(),
+      date: data.date + ' 12:00:00.000Z',
     })
     toast({ title: 'Sucesso', description: 'Lançamento registrado com sucesso' })
     form.reset()

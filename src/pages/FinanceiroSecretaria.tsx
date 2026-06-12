@@ -4,7 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { LogOut, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRealtime } from '@/hooks/use-realtime'
-import { getDailyTransactions, deleteTransaction, TransactionRecord } from '@/services/transactions'
+import {
+  getRecentTransactions,
+  deleteTransaction,
+  TransactionRecord,
+} from '@/services/transactions'
 import { formatCurrency } from '@/lib/utils'
 import { ConsultaForm } from '@/components/financeiro/ConsultaForm'
 import { TaxaForm } from '@/components/financeiro/TaxaForm'
@@ -31,7 +35,7 @@ export default function FinanceiroSecretaria() {
 
   const loadData = async () => {
     try {
-      const res = await getDailyTransactions()
+      const res = await getRecentTransactions()
       setTransactions(res.items)
     } catch (e) {
       console.error(e)
@@ -97,12 +101,12 @@ export default function FinanceiroSecretaria() {
         </div>
 
         <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 shadow-elevation">
-          <h3 className="text-lg font-bold mb-4 text-foreground">Últimos Lançamentos (Hoje)</h3>
+          <h3 className="text-lg font-bold mb-4 text-foreground">Últimos Lançamentos</h3>
           {transactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">Nenhum lançamento hoje.</p>
+            <p className="text-center text-muted-foreground py-4">Nenhum lançamento encontrado.</p>
           ) : (
             <div className="space-y-3">
-              {transactions.slice(0, 10).map((tx) => (
+              {transactions.slice(0, 20).map((tx) => (
                 <div
                   key={tx.id}
                   className="flex justify-between items-center p-3 bg-white rounded-2xl shadow-sm border border-border/50"
