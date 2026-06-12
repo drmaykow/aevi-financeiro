@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Minus, TrendingUp, TrendingDown, Users, DollarSign, Activity } from 'lucide-react'
@@ -49,6 +50,7 @@ function Variation({ value, inverse = false }: { value: number; inverse?: boolea
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
   const [period, setPeriod] = useState<Period>('month')
+  const [doctorFilter, setDoctorFilter] = useState<string>('todos')
 
   const loadData = async () => {
     try {
@@ -97,7 +99,9 @@ export default function Dashboard() {
     )
 
     const calcHealth = (txs: TransactionRecord[]) => {
-      const rev = txs.filter((t) => t.type === 'entry').reduce((sum, t) => sum + t.amount, 0)
+      const rev = txs
+        .filter((t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter))
+        .reduce((sum, t) => sum + t.amount, 0)
       const costs = txs.filter((t) => t.type === 'exit').reduce((sum, t) => sum + t.amount, 0)
       const profit = rev - costs
       const margin = rev > 0 ? (profit / rev) * 100 : 0
@@ -112,7 +116,10 @@ export default function Dashboard() {
       return ((curr - prev) / Math.abs(prev)) * 100
     }
 
-    const atendimentos = currentTxs.filter((t) => t.type === 'entry').length
+    const entries = currentTxs.filter(
+      (t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter)
+    )
+    const atendimentos = entries.length
     const ticketMedio = atendimentos > 0 ? currentHealth.rev / atendimentos : 0
 
     const drMaykowRev = currentTxs
@@ -122,8 +129,9 @@ export default function Dashboard() {
       .filter((t) => t.type === 'entry' && t.doctor === 'Dra. Ana Cláudia')
       .reduce((sum, t) => sum + t.amount, 0)
 
-    const drMaykowPct = currentHealth.rev > 0 ? (drMaykowRev / currentHealth.rev) * 100 : 0
-    const draAnaPct = currentHealth.rev > 0 ? (draAnaRev / currentHealth.rev) * 100 : 0
+    const totalRev = currentTxs.filter((t) => t.type === 'entry').reduce((sum, t) => sum + t.amount, 0)
+    const drMaykowPct = totalRev > 0 ? (drMaykowRev / totalRev) * 100 : 0
+    const draAnaPct = totalRev > 0 ? (draAnaRev / totalRev) * 100 : 0
 
     const isNewPatient = (procedures: any) => {
       if (Array.isArray(procedures))
@@ -135,9 +143,7 @@ export default function Dashboard() {
       return false
     }
 
-    const pacientesNovas = currentTxs.filter(
-      (t) => t.type === 'entry' && isNewPatient(t.procedures),
-    ).length
+    const pacientesNovas = entries.filter((t) => isNewPatient(t.procedures)).length
     const marketingCosts = currentTxs
       .filter((t) => t.type === 'exit' && t.category === 'MARKETING')
       .reduce((sum, t) => sum + t.amount, 0)
@@ -161,7 +167,7 @@ export default function Dashboard() {
       pacientesNovas,
       cac,
     }
-  }, [transactions, period])
+  }, [transactions, period, doctorFilter])
 
   const chartData = useMemo(() => {
     const now = new Date()
@@ -174,7 +180,9 @@ export default function Dashboard() {
         isWithinInterval(new Date(tx.date), { start: monthStart, end: monthEnd }),
       )
 
-      const rev = monthTxs.filter((t) => t.type === 'entry').reduce((sum, t) => sum + t.amount, 0)
+      const rev = monthTxs
+        .filter((t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter))
+        .reduce((sum, t) => sum + t.amount, 0)
       const costs = monthTxs.filter((t) => t.type === 'exit').reduce((sum, t) => sum + t.amount, 0)
 
       const monthName = format(d, 'MMM', { locale: ptBR })
@@ -185,18 +193,31 @@ export default function Dashboard() {
       })
     }
     return data
-  }, [transactions])
+  }, [transactions, doctorFilter])
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-        <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-          {(['month', 'quarter', 'year'] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={cn(
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <div className="w-[180px]">
+            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Médico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="Dr. Maykow">Dr. Maykow</SelectItem>
+                <SelectItem value="Dra. Ana Cláudia">Dra. Ana Cláudia</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+            {(['month', 'quarter', 'year'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={cn(
                 'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
                 period === p
                   ? 'bg-background text-foreground shadow-sm'
