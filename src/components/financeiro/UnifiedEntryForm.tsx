@@ -39,6 +39,7 @@ const entrySchema = z.object({
   entry_type: z.enum(['CONSULTA/PROCEDIMENTO', 'TAXA DE AGENDAMENTO']),
   doctor: z.string().min(1, 'Médico é obrigatório'),
   patient: z.string().min(1, 'Paciente é obrigatório'),
+  patient_source: z.string().optional(),
   procedures: z.array(z.string()).optional(),
   payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
   card_machine: z.string().optional(),
@@ -76,6 +77,7 @@ export function UnifiedEntryForm({
       entry_type: (defaultEntryType as any) || 'CONSULTA/PROCEDIMENTO',
       doctor: '',
       patient: '',
+      patient_source: '',
       procedures: [],
       payment_method: 'PIX',
       card_machine: '',
@@ -115,6 +117,7 @@ export function UnifiedEntryForm({
         ...data,
         type: 'entry',
         date: data.date + ' 12:00:00.000Z',
+        patient_source: data.patient_source || undefined,
         procedures: data.procedures || [],
         card_fee_percent: calculations.feePercent,
         card_fee_amount: calculations.feeAmount,
@@ -192,23 +195,68 @@ export function UnifiedEntryForm({
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="patient"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Paciente</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Nome completo do paciente"
-                  className="bg-muted/50 border-transparent focus-visible:ring-secondary"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="patient"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Paciente</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Nome completo do paciente"
+                    className="bg-muted/50 border-transparent focus-visible:ring-secondary"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="patient_source"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Origem do Paciente</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  value={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger className="bg-muted/50 border-transparent focus:ring-secondary">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {[
+                      'Google',
+                      'Seguimento',
+                      'Médico(a)',
+                      'Paciente',
+                      'Facebook',
+                      'Instagram',
+                      'Tik Tok',
+                      'Chat GPT',
+                      'Youtube',
+                      'Doctorália',
+                      'ECO',
+                      'Desconhecido',
+                      'Outros',
+                    ].map((source) => (
+                      <SelectItem key={source} value={source}>
+                        {source}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         {form.watch('entry_type') === 'CONSULTA/PROCEDIMENTO' && (
           <FormField

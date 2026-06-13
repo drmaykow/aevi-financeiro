@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-13T14:48:50.318Z",
+  "generatedAt": "2026-06-13T14:51:57.023Z",
   "collections": [
     {
       "name": "users",
@@ -29,29 +29,21 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "role",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "medico",
-            "secretaria"
-          ]
+          "selectValues": ["medico", "secretaria"]
         }
       ],
       "indexes": [
@@ -81,10 +73,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "entry",
-            "exit"
-          ]
+          "selectValues": ["entry", "exit"]
         },
         {
           "name": "doctor",
@@ -103,11 +92,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "PIX",
-            "DINHEIRO",
-            "CARTÃO DE CRÉDITO"
-          ]
+          "selectValues": ["PIX", "DINHEIRO", "CARTÃO DE CRÉDITO"]
         },
         {
           "name": "category",
@@ -146,19 +131,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "patient",
@@ -171,10 +151,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "CONSULTA/PROCEDIMENTO",
-            "TAXA DE AGENDAMENTO"
-          ]
+          "selectValues": ["CONSULTA/PROCEDIMENTO", "TAXA DE AGENDAMENTO"]
         },
         {
           "name": "procedures",
@@ -218,6 +195,27 @@
           "type": "bool",
           "required": false,
           "system": false
+        },
+        {
+          "name": "patient_source",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Google",
+            "Seguimento",
+            "Médico(a)",
+            "Paciente",
+            "Facebook",
+            "Instagram",
+            "Tik Tok",
+            "Chat GPT",
+            "Youtube",
+            "Doctorália",
+            "ECO",
+            "Desconhecido",
+            "Outros"
+          ]
         }
       ],
       "indexes": []
@@ -250,29 +248,21 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "settlement_mode",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "ANTECIPADO",
-            "PARCELADO"
-          ]
+          "selectValues": ["ANTECIPADO", "PARCELADO"]
         }
       ],
       "indexes": []
@@ -299,22 +289,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "Dr. Maykow",
-            "Dra. Ana Cláudia"
-          ]
+          "selectValues": ["Dr. Maykow", "Dra. Ana Cláudia"]
         },
         {
           "name": "category",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "CONSULTAS",
-            "DIU",
-            "IMPLANON",
-            "PROCEDIMENTOS"
-          ]
+          "selectValues": ["CONSULTAS", "DIU", "IMPLANON", "PROCEDIMENTOS"]
         },
         {
           "name": "active",
@@ -327,19 +309,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

@@ -10,6 +10,7 @@ export interface TransactionRecord {
   category?: string
   description?: string
   patient?: string
+  patient_source?: string
   entry_type?: string
   procedures?: string[]
   installments?: number

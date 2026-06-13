@@ -92,13 +92,15 @@ export default function Entradas() {
                 <TableHead className="font-semibold">Tipo / Procedimento</TableHead>
                 <TableHead className="font-semibold">Médico</TableHead>
                 <TableHead className="font-semibold">Paciente</TableHead>
+                <TableHead className="font-semibold">Origem</TableHead>
                 <TableHead className="text-right font-semibold">Valor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {incomes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    {' '}
                     Nenhuma entrada encontrada.
                   </TableCell>
                 </TableRow>
@@ -135,6 +137,9 @@ export default function Entradas() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{tx.patient || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {tx.patient_source || '-'}
+                    </TableCell>
                     <TableCell className="text-right font-semibold text-secondary">
                       {formatCurrency(tx.amount)}
                     </TableCell>
