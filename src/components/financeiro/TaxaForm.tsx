@@ -18,7 +18,6 @@ const schema = z.object({
   date: z.string().min(1, 'Preencha este campo'),
   doctor: z.string().min(1, 'Preencha este campo'),
   patient: z.string().min(1, 'Informe o nome da paciente'),
-  patient_source: z.string().optional(),
   amount: z.coerce.number().min(1, 'Preencha este campo'),
   payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO'], {
     required_error: 'Preencha este campo',
@@ -41,7 +40,6 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
       date: getLocalDate(),
       doctor: '',
       patient: '',
-      patient_source: undefined,
       amount: 0,
       payment_method: undefined,
     },
@@ -59,7 +57,6 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
         date: data.date + ' 12:00:00.000Z',
         doctor: data.doctor,
         patient: data.patient,
-        patient_source: data.patient_source,
         amount: data.amount,
         payment_method: data.payment_method as any,
         net_amount: data.amount,
@@ -72,7 +69,6 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
         date: getLocalDate(),
         doctor: '',
         patient: '',
-        patient_source: undefined,
         amount: 0,
         payment_method: undefined,
       })
@@ -116,52 +112,16 @@ export function TaxaForm({ onSuccess, onCancel }: { onSuccess: () => void; onCan
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label className={form.formState.errors.patient ? 'text-destructive' : ''}>
-            Paciente
-          </Label>
-          <Input
-            {...form.register('patient')}
-            placeholder="Nome completo"
-            className={`rounded-xl h-12 bg-white mt-1 ${form.formState.errors.patient ? 'border-destructive ring-destructive' : ''}`}
-          />
-          {form.formState.errors.patient && (
-            <p className="text-xs text-destructive mt-1">{form.formState.errors.patient.message}</p>
-          )}
-        </div>
-        <div>
-          <Label>Origem do Paciente</Label>
-          <Select
-            onValueChange={(v) => form.setValue('patient_source', v)}
-            value={form.watch('patient_source')}
-          >
-            <SelectTrigger className="bg-white rounded-xl h-12 mt-1">
-              <SelectValue placeholder="Selecione..." />
-            </SelectTrigger>
-            <SelectContent>
-              {[
-                'Google',
-                'Seguimento',
-                'Médico(a)',
-                'Paciente',
-                'Facebook',
-                'Instagram',
-                'Tik Tok',
-                'Chat GPT',
-                'Youtube',
-                'Doctorália',
-                'ECO',
-                'Desconhecido',
-                'Outros',
-              ].map((source) => (
-                <SelectItem key={source} value={source}>
-                  {source}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <Label className={form.formState.errors.patient ? 'text-destructive' : ''}>Paciente</Label>
+        <Input
+          {...form.register('patient')}
+          placeholder="Nome completo"
+          className={`rounded-xl h-12 bg-white mt-1 ${form.formState.errors.patient ? 'border-destructive ring-destructive' : ''}`}
+        />
+        {form.formState.errors.patient && (
+          <p className="text-xs text-destructive mt-1">{form.formState.errors.patient.message}</p>
+        )}
       </div>
 
       <div>

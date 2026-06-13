@@ -117,7 +117,10 @@ export function UnifiedEntryForm({
         ...data,
         type: 'entry',
         date: data.date + ' 12:00:00.000Z',
-        patient_source: data.patient_source || undefined,
+        patient_source:
+          data.entry_type === 'CONSULTA/PROCEDIMENTO'
+            ? data.patient_source || undefined
+            : undefined,
         procedures: data.procedures || [],
         card_fee_percent: calculations.feePercent,
         card_fee_amount: calculations.feeAmount,
@@ -200,7 +203,9 @@ export function UnifiedEntryForm({
             control={form.control}
             name="patient"
             render={({ field }) => (
-              <FormItem>
+              <FormItem
+                className={form.watch('entry_type') === 'TAXA DE AGENDAMENTO' ? 'col-span-2' : ''}
+              >
                 <FormLabel>Paciente</FormLabel>
                 <FormControl>
                   <Input
@@ -214,48 +219,50 @@ export function UnifiedEntryForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="patient_source"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Origem do Paciente</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger className="bg-muted/50 border-transparent focus:ring-secondary">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {[
-                      'Google',
-                      'Seguimento',
-                      'Médico(a)',
-                      'Paciente',
-                      'Facebook',
-                      'Instagram',
-                      'Tik Tok',
-                      'Chat GPT',
-                      'Youtube',
-                      'Doctorália',
-                      'ECO',
-                      'Desconhecido',
-                      'Outros',
-                    ].map((source) => (
-                      <SelectItem key={source} value={source}>
-                        {source}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {form.watch('entry_type') === 'CONSULTA/PROCEDIMENTO' && (
+            <FormField
+              control={form.control}
+              name="patient_source"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origem do Paciente</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-muted/50 border-transparent focus:ring-secondary">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {[
+                        'Google',
+                        'Seguimento',
+                        'Médico(a)',
+                        'Paciente',
+                        'Facebook',
+                        'Instagram',
+                        'Tik Tok',
+                        'Chat GPT',
+                        'Youtube',
+                        'Doctorália',
+                        'ECO',
+                        'Desconhecido',
+                        'Outros',
+                      ].map((source) => (
+                        <SelectItem key={source} value={source}>
+                          {source}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         {form.watch('entry_type') === 'CONSULTA/PROCEDIMENTO' && (
