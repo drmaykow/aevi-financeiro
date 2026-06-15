@@ -21,6 +21,8 @@ import {
   LogOut,
   Activity,
   Settings,
+  Shield,
+  Users,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -45,6 +47,8 @@ export default function Layout() {
         { title: 'Saídas', url: '/saidas', icon: TrendingDown },
         { title: 'Relatórios', url: '/relatorios', icon: PieChart },
         { title: 'Configurações', url: '/configuracoes', icon: Settings },
+        { title: 'Usuários', url: '/usuarios', icon: Users },
+        { title: 'Auditoria', url: '/log', icon: Shield },
       ]
     : [
         { title: 'Entradas', url: '/entradas', icon: TrendingUp },

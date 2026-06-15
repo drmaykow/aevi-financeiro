@@ -8,7 +8,11 @@ export interface UserRecord {
   created: string
 }
 
-export const getUsers = () => pb.collection('users').getFullList<UserRecord>({ sort: '-created' })
+export const getUsers = () =>
+  pb.send('/backend/v1/users', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  }) as Promise<UserRecord[]>
 export const deleteUser = (id: string) => pb.collection('users').delete(id)
 export const createUser = (data: any) =>
   pb.send('/backend/v1/users', {

@@ -1,25 +1,15 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Minus, TrendingUp, TrendingDown, Users, DollarSign, Activity } from 'lucide-react'
 import { Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { getTransactions, TransactionRecord } from '@/services/transactions'
-import { useRealtime } from '@/hooks/use-realtime'
+import { DashboardProvider, useDashboard } from '@/components/dashboard/DashboardContext'
+import { DashboardFilters } from '@/components/dashboard/DashboardFilters'
 import {
   startOfMonth,
   endOfMonth,
   subMonths,
-  startOfQuarter,
-  endOfQuarter,
-  subQuarters,
   startOfYear,
   endOfYear,
   subYears,
@@ -27,8 +17,6 @@ import {
   isWithinInterval,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-
-type Period = 'month' | 'quarter' | 'year'
 
 const chartConfig = {
   Faturamento: { label: 'Faturamento', color: '#1e3a8a' },
@@ -53,47 +41,65 @@ function Variation({ value, inverse = false }: { value: number; inverse?: boolea
   )
 }
 
-export default function Dashboard() {
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([])
-  const [period, setPeriod] = useState<Period>('month')
-  const [doctorFilter, setDoctorFilter] = useState<string>('todos')
-
-  const loadData = async () => {
-    try {
-      const res = await getTransactions()
-      setTransactions(res)
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  useRealtime('transactions', () => {
-    loadData()
-  })
+function DashboardInner() {
+  const { allTransactions, period, doctorFilter } = useDashboard()
 
   const dashboardData = useMemo(() => {
     const now = new Date()
-    const validTransactions = transactions.filter((tx) => new Date(tx.date) <= now)
+    const validTransactions = allTransactions
+
     let currentStart: Date, currentEnd: Date, previousStart: Date, previousEnd: Date
 
     currentEnd = now
 
-    if (period === 'month') {
-      currentStart = startOfMonth(now)
-      previousStart = startOfMonth(subMonths(now, 1))
-      previousEnd = subMonths(now, 1)
-    } else if (period === 'quarter') {
-      currentStart = subMonths(now, 3)
-      previousStart = subMonths(now, 6)
-      previousEnd = subMonths(now, 3)
-    } else {
-      currentStart = startOfYear(now)
-      previousStart = startOfYear(subYears(now, 1))
-      previousEnd = subYears(now, 1)
+    switch (period) {
+      case 'current_month':
+        currentStart = startOfMonth(now)
+        currentEnd = now
+        previousStart = startOfMonth(subMonths(now, 1))
+        previousEnd = endOfMonth(subMonths(now, 1))
+        break
+      case 'last_month':
+        currentStart = startOfMonth(subMonths(now, 1))
+        currentEnd = endOfMonth(subMonths(now, 1))
+        previousStart = startOfMonth(subMonths(now, 2))
+        previousEnd = endOfMonth(subMonths(now, 2))
+        break
+      case 'last_3_months':
+        currentStart = startOfMonth(subMonths(now, 2))
+        currentEnd = now
+        previousStart = startOfMonth(subMonths(now, 5))
+        previousEnd = endOfMonth(subMonths(now, 3))
+        break
+      case 'last_6_months':
+        currentStart = startOfMonth(subMonths(now, 5))
+        currentEnd = now
+        previousStart = startOfMonth(subMonths(now, 11))
+        previousEnd = endOfMonth(subMonths(now, 6))
+        break
+      case 'current_year':
+        currentStart = startOfYear(now)
+        currentEnd = now
+        previousStart = startOfYear(subYears(now, 1))
+        previousEnd = endOfYear(subYears(now, 1))
+        break
+      case 'last_year':
+        currentStart = startOfYear(subYears(now, 1))
+        currentEnd = endOfYear(subYears(now, 1))
+        previousStart = startOfYear(subYears(now, 2))
+        previousEnd = endOfYear(subYears(now, 2))
+        break
+      case 'always':
+        currentStart = new Date(0)
+        currentEnd = now
+        previousStart = new Date(0)
+        previousEnd = new Date(0)
+        break
+      default:
+        currentStart = startOfMonth(now)
+        currentEnd = now
+        previousStart = startOfMonth(subMonths(now, 1))
+        previousEnd = endOfMonth(subMonths(now, 1))
     }
 
     const currentTxs = validTransactions.filter((tx) =>
@@ -104,7 +110,7 @@ export default function Dashboard() {
       isWithinInterval(new Date(tx.date), { start: previousStart, end: previousEnd }),
     )
 
-    const calcHealth = (txs: TransactionRecord[]) => {
+    const calcHealth = (txs: any[]) => {
       const rev = txs
         .filter(
           (t) => t.type === 'entry' && (doctorFilter === 'todos' || t.doctor === doctorFilter),
@@ -177,11 +183,11 @@ export default function Dashboard() {
       pacientesNovas,
       cac,
     }
-  }, [transactions, period, doctorFilter])
+  }, [allTransactions, period, doctorFilter])
 
   const chartData = useMemo(() => {
     const now = new Date()
-    const validTransactions = transactions.filter((tx) => new Date(tx.date) <= now)
+    const validTransactions = allTransactions
     const data = []
     for (let i = 5; i >= 0; i--) {
       const d = subMonths(now, i)
@@ -206,43 +212,15 @@ export default function Dashboard() {
       })
     }
     return data
-  }, [transactions, doctorFilter])
+  }, [allTransactions, doctorFilter])
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-        <div className="flex flex-col sm:flex-row items-center gap-2">
-          <div className="w-[180px]">
-            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Médico" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="Dr. Maykow">Dr. Maykow</SelectItem>
-                <SelectItem value="Dra. Ana Cláudia">Dra. Ana Cláudia</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-            {(['month', 'quarter', 'year'] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={cn(
-                  'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-                  period === p
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'hover:bg-background/50 hover:text-foreground',
-                )}
-              >
-                {p === 'month' ? 'Mês atual' : p === 'quarter' ? 'Trimestre' : 'Ano'}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
+
+      <DashboardFilters />
 
       {/* Block 1: Health Metrics */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -485,5 +463,13 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <DashboardProvider>
+      <DashboardInner />
+    </DashboardProvider>
   )
 }

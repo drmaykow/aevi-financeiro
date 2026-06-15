@@ -12,6 +12,8 @@ import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import FinanceiroSecretaria from './pages/FinanceiroSecretaria'
 import Configuracoes from './pages/Configuracoes'
+import LogAudit from './pages/LogAudit'
+import Usuarios from './pages/Usuarios'
 
 const ProtectedRoute = ({
   children,
@@ -57,6 +59,8 @@ const App = () => (
             <Route path="/saidas" element={<Saidas />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
+            <Route path="/log" element={<LogAudit />} />
+            <Route path="/usuarios" element={<Usuarios />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

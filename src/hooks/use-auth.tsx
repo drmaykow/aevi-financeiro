@@ -6,7 +6,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   signUp: (email: string, password: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
-  signOut: () => void
+  signOut: () => Promise<void>
   loading: boolean
 }
 
@@ -56,13 +56,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       await pb.collection('users').authWithPassword(email, password)
+      try {
+        await pb.send('/backend/v1/log-auth', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'login' }),
+        })
+      } catch {
+        /* intentionally ignored */
+      }
       return { error: null }
     } catch (error) {
       return { error }
     }
   }
 
-  const signOut = () => {
+  const signOut = async () => {
+    try {
+      await pb.send('/backend/v1/log-auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'logout' }),
+      })
+    } catch {
+      /* intentionally ignored */
+    }
     pb.authStore.clear()
   }
 

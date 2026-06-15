@@ -41,7 +41,12 @@ export default function Usuarios() {
   const [users, setUsers] = useState<UserRecord[]>([])
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isEditPassOpen, setIsEditPassOpen] = useState(false)
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null)
+
+  const [editUserName, setEditUserName] = useState('')
+  const [editUserEmail, setEditUserEmail] = useState('')
+  const [editUserRole, setEditUserRole] = useState('secretaria')
 
   const [newUserName, setNewUserName] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
@@ -244,6 +249,18 @@ export default function Usuarios() {
                           className="rounded-lg cursor-pointer flex items-center"
                           onClick={() => {
                             setSelectedUser(u)
+                            setEditUserName(u.name || '')
+                            setEditUserEmail(u.email || '')
+                            setEditUserRole(u.role || 'secretaria')
+                            setIsEditUserOpen(true)
+                          }}
+                        >
+                          <MoreHorizontal size={16} className="mr-2 text-primary" /> Editar Perfil
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="rounded-lg cursor-pointer flex items-center"
+                          onClick={() => {
+                            setSelectedUser(u)
                             setIsEditPassOpen(true)
                           }}
                         >
@@ -271,6 +288,77 @@ export default function Usuarios() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-primary mb-4">
+              Editar Usuário
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input
+                value={editUserName}
+                onChange={(e) => setEditUserName(e.target.value)}
+                placeholder="Nome completo"
+                className="rounded-xl h-11 bg-muted/50 border-transparent"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input
+                value={editUserEmail}
+                onChange={(e) => setEditUserEmail(e.target.value)}
+                placeholder="usuario@email.com"
+                type="email"
+                className="rounded-xl h-11 bg-muted/50 border-transparent"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Perfil de Acesso</Label>
+              <Select value={editUserRole} onValueChange={setEditUserRole}>
+                <SelectTrigger className="rounded-xl h-11 bg-muted/50 border-transparent">
+                  <SelectValue placeholder="Selecione o perfil" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="medico">Médico (Admin)</SelectItem>
+                  <SelectItem value="secretaria">Secretária</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={async () => {
+                if (!selectedUser) return
+                try {
+                  const pb = (await import('@/lib/pocketbase/client')).default
+                  await pb.send(`/backend/v1/users/${selectedUser.id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                      name: editUserName,
+                      email: editUserEmail,
+                      role: editUserRole,
+                    }),
+                  })
+                  setIsEditUserOpen(false)
+                  loadUsers()
+                  toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso' })
+                } catch (e: any) {
+                  toast({
+                    title: 'Erro',
+                    description: e.message || 'Erro ao atualizar',
+                    variant: 'destructive',
+                  })
+                }
+              }}
+              className="w-full rounded-full bg-primary hover:bg-primary/90 h-11 mt-4"
+            >
+              Salvar Alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isEditPassOpen} onOpenChange={setIsEditPassOpen}>
         <DialogContent className="sm:max-w-md rounded-3xl p-6">

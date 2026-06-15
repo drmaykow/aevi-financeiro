@@ -13,6 +13,8 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { ConsultaForm } from '@/components/financeiro/ConsultaForm'
 import { TaxaForm } from '@/components/financeiro/TaxaForm'
 import { NovaSaidaForm } from '@/components/financeiro/NovaSaidaForm'
+import { EditTransactionModal } from '@/components/financeiro/EditTransactionModal'
+import { Edit2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +34,7 @@ export default function FinanceiroSecretaria() {
     'home',
   )
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
+  const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null)
 
   const loadData = async () => {
     try {
@@ -144,40 +147,62 @@ export default function FinanceiroSecretaria() {
                       >
                         {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
                       </span>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                      {(!tx.created ||
+                        Date.now() - new Date(tx.created.replace(' ', 'T')).getTime() <=
+                          48 * 3600 * 1000) && (
+                        <>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                            onClick={() => setEditingTx(tx)}
+                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                           >
-                            <Trash2 size={16} />
+                            <Edit2 size={16} />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="rounded-3xl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que quer apagar este lançamento?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-full">Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
-                              className="bg-destructive text-white rounded-full hover:bg-destructive/90"
-                            >
-                              Apagar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-3xl">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que quer apagar este lançamento?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="rounded-full">
+                                  Cancelar
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
+                                  className="bg-destructive text-white rounded-full hover:bg-destructive/90"
+                                >
+                                  Apagar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
             </div>
           )}
         </div>
+        <EditTransactionModal
+          transaction={editingTx}
+          open={!!editingTx}
+          onOpenChange={(op) => !op && setEditingTx(null)}
+          onSuccess={loadData}
+        />
       </div>
     )
   }
