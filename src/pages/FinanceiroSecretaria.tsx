@@ -11,8 +11,6 @@ import {
 } from '@/services/transactions'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ConsultaForm } from '@/components/financeiro/ConsultaForm'
-import { TaxaForm } from '@/components/financeiro/TaxaForm'
-import { NovaSaidaForm } from '@/components/financeiro/NovaSaidaForm'
 import { EditTransactionModal } from '@/components/financeiro/EditTransactionModal'
 import { Edit2 } from 'lucide-react'
 import {
@@ -30,9 +28,7 @@ import {
 export default function FinanceiroSecretaria() {
   const { signOut } = useAuth()
   const navigate = useNavigate()
-  const [view, setView] = useState<'home' | 'nova-entrada' | 'nova-saida' | 'consulta' | 'taxa'>(
-    'home',
-  )
+  const [view, setView] = useState<'home' | 'consulta'>('home')
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
   const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null)
 
@@ -54,52 +50,16 @@ export default function FinanceiroSecretaria() {
 
   const renderView = () => {
     if (view === 'consulta')
-      return (
-        <ConsultaForm onSuccess={() => setView('home')} onCancel={() => setView('nova-entrada')} />
-      )
-    if (view === 'taxa')
-      return <TaxaForm onSuccess={() => setView('home')} onCancel={() => setView('nova-entrada')} />
-    if (view === 'nova-saida')
-      return <NovaSaidaForm onSuccess={() => setView('home')} onCancel={() => setView('home')} />
-    if (view === 'nova-entrada') {
-      return (
-        <div className="space-y-4 animate-fade-in max-w-lg mx-auto p-4 bg-white/50 rounded-3xl">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-foreground">Nova Entrada</h2>
-            <Button variant="ghost" onClick={() => setView('home')}>
-              Cancelar
-            </Button>
-          </div>
-          <Button
-            onClick={() => setView('consulta')}
-            className="w-full h-20 text-lg rounded-2xl bg-white text-foreground hover:bg-white shadow-sm border border-border"
-          >
-            🩺 CONSULTA / PROCEDIMENTO
-          </Button>
-          <Button
-            onClick={() => setView('taxa')}
-            className="w-full h-20 text-lg rounded-2xl bg-white text-foreground hover:bg-white shadow-sm border border-border"
-          >
-            📅 TAXA DE AGENDAMENTO
-          </Button>
-        </div>
-      )
-    }
+      return <ConsultaForm onSuccess={() => setView('home')} onCancel={() => setView('home')} />
 
     return (
       <div className="max-w-lg mx-auto mt-4 space-y-8 animate-fade-in">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <Button
-            onClick={() => setView('nova-entrada')}
+            onClick={() => setView('consulta')}
             className="h-32 text-xl font-bold rounded-3xl bg-green-600 text-white shadow-lg hover:bg-green-700 hover:scale-[1.02] flex flex-col gap-2"
           >
             <span className="text-3xl">+</span> NOVA ENTRADA
-          </Button>
-          <Button
-            onClick={() => setView('nova-saida')}
-            className="h-32 text-xl font-bold rounded-3xl bg-red-600 text-white shadow-lg hover:bg-red-700 hover:scale-[1.02] flex flex-col gap-2"
-          >
-            <span className="text-3xl">-</span> NOVA SAÍDA
           </Button>
         </div>
 
