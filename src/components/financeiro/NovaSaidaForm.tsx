@@ -121,14 +121,16 @@ export function NovaSaidaForm({
 
   const onSubmit = async (data: z.infer<typeof schema>) => {
     try {
+      const isMarketingOrEstorno =
+        data.category === 'MARKETING' || data.category === 'ESTORNO DE TAXA'
       await createTransaction({
         type: 'exit',
         date: data.date + ' 12:00:00.000Z',
         category: data.category as any,
         amount: data.amount,
         description: data.description || '',
-        doctor: data.doctor,
-        patient: data.patient,
+        doctor: isMarketingOrEstorno ? data.doctor : '',
+        patient: data.category === 'ESTORNO DE TAXA' ? data.patient : '',
         is_recurring: data.is_recurring,
       })
       toast({
@@ -195,8 +197,10 @@ export function NovaSaidaForm({
               className={`h-14 rounded-xl font-bold text-xs ${cat === c ? (c === 'ESTORNO DE TAXA' ? 'bg-destructive' : 'bg-secondary') + ' text-white shadow-md' : 'bg-white'}`}
               onClick={() => {
                 form.setValue('category', c as any, { shouldValidate: true })
-                if (c !== 'ESTORNO DE TAXA') {
+                if (c !== 'ESTORNO DE TAXA' && c !== 'MARKETING') {
                   form.setValue('doctor', '')
+                }
+                if (c !== 'ESTORNO DE TAXA') {
                   form.setValue('patient', '')
                   form.setValue('description', '')
                 }
@@ -210,6 +214,29 @@ export function NovaSaidaForm({
           <p className="text-xs text-destructive mt-1">{form.formState.errors.category.message}</p>
         )}
       </div>
+
+      {cat === 'MARKETING' && (
+        <div>
+          <Label className={form.formState.errors.doctor ? 'text-destructive' : ''}>
+            Médico (Opcional)
+          </Label>
+          <div className="grid grid-cols-2 gap-3 mt-1 mb-4">
+            {['Dr. Maykow', 'Dra. Ana Cláudia'].map((d) => (
+              <Button
+                key={d}
+                type="button"
+                variant={doc === d ? 'default' : 'outline'}
+                className={`h-12 rounded-xl font-bold ${doc === d ? 'bg-primary text-white shadow-md' : 'bg-white'}`}
+                onClick={() =>
+                  form.setValue('doctor', doc === d ? '' : d, { shouldValidate: true })
+                }
+              >
+                {d}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {cat === 'ESTORNO DE TAXA' ? (
         <div className="space-y-4 p-4 bg-red-50/50 rounded-2xl border border-red-100">

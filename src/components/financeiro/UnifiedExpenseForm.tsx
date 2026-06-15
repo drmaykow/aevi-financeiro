@@ -115,8 +115,12 @@ export function UnifiedExpenseForm({
   const onSubmit = async (data: ExpenseFormValues) => {
     setLoading(true)
     try {
+      const isMarketingOrEstorno =
+        data.category === 'MARKETING' || data.category === 'ESTORNO DE TAXA'
       await createTransaction({
         ...data,
+        doctor: isMarketingOrEstorno ? data.doctor : '',
+        patient: data.category === 'ESTORNO DE TAXA' ? data.patient : '',
         type: 'exit',
         date: data.date + ' 12:00:00.000Z',
         is_recurring: data.is_recurring,
@@ -189,14 +193,19 @@ export function UnifiedExpenseForm({
           )}
         />
 
-        {form.watch('category') === 'ESTORNO DE TAXA' && (
-          <div className="grid grid-cols-2 gap-4">
+        {(form.watch('category') === 'ESTORNO DE TAXA' ||
+          form.watch('category') === 'MARKETING') && (
+          <div
+            className={`grid ${form.watch('category') === 'ESTORNO DE TAXA' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}
+          >
             <FormField
               control={form.control}
               name="doctor"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Médico</FormLabel>
+                  <FormLabel>
+                    Médico {form.watch('category') === 'MARKETING' && '(Opcional)'}
+                  </FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -216,23 +225,25 @@ export function UnifiedExpenseForm({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="patient"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Paciente</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Nome do paciente"
-                      className="bg-muted/50 border-transparent focus-visible:ring-primary"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {form.watch('category') === 'ESTORNO DE TAXA' && (
+              <FormField
+                control={form.control}
+                name="patient"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paciente</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Nome do paciente"
+                        className="bg-muted/50 border-transparent focus-visible:ring-primary"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
         )}
 

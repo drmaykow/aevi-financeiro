@@ -87,6 +87,7 @@ export function UnifiedEntryForm({
     },
   })
 
+  const watchEntryType = form.watch('entry_type')
   const watchPaymentMethod = form.watch('payment_method')
   const watchMachine = form.watch('card_machine')
   const watchInstallments = form.watch('installments')
@@ -117,8 +118,11 @@ export function UnifiedEntryForm({
         ...data,
         type: 'entry',
         date: data.date + ' 12:00:00.000Z',
-        patient_source: data.patient_source || undefined,
-        procedures: data.procedures || [],
+        patient_source:
+          data.entry_type === 'CONSULTA/PROCEDIMENTO'
+            ? data.patient_source || undefined
+            : undefined,
+        procedures: data.entry_type === 'CONSULTA/PROCEDIMENTO' ? data.procedures || [] : [],
         card_fee_percent: calculations.feePercent,
         card_fee_amount: calculations.feeAmount,
         net_amount: calculations.netAmount,
@@ -195,7 +199,12 @@ export function UnifiedEntryForm({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div
+          className={cn(
+            'grid gap-4',
+            watchEntryType === 'CONSULTA/PROCEDIMENTO' ? 'grid-cols-2' : 'grid-cols-1',
+          )}
+        >
           <FormField
             control={form.control}
             name="patient"
@@ -214,48 +223,50 @@ export function UnifiedEntryForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="patient_source"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Origem do Paciente</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger className="bg-muted/50 border-transparent focus:ring-secondary">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {[
-                      'Google',
-                      'Seguimento',
-                      'Médico(a)',
-                      'Paciente',
-                      'Facebook',
-                      'Instagram',
-                      'Tik Tok',
-                      'Chat GPT',
-                      'Youtube',
-                      'Doctorália',
-                      'ECO',
-                      'Desconhecido',
-                      'Outros',
-                    ].map((source) => (
-                      <SelectItem key={source} value={source}>
-                        {source}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {watchEntryType === 'CONSULTA/PROCEDIMENTO' && (
+            <FormField
+              control={form.control}
+              name="patient_source"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origem do Paciente</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-muted/50 border-transparent focus:ring-secondary">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {[
+                        'Google',
+                        'Seguimento',
+                        'Médico(a)',
+                        'Paciente',
+                        'Facebook',
+                        'Instagram',
+                        'Tik Tok',
+                        'Chat GPT',
+                        'Youtube',
+                        'Doctorália',
+                        'ECO',
+                        'Desconhecido',
+                        'Outros',
+                      ].map((source) => (
+                        <SelectItem key={source} value={source}>
+                          {source}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         {form.watch('entry_type') === 'CONSULTA/PROCEDIMENTO' && (
