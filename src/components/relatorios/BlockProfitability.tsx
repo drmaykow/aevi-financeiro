@@ -5,7 +5,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useMemo } from 'react'
 
 export function BlockProfitability() {
-  const { filteredTxs, doctorFilter } = useRelatorios()
+  const { filteredTxs, doctorFilter, period } = useRelatorios()
 
   const m = useMemo(() => {
     const entries = filteredTxs.filter(
@@ -22,13 +22,15 @@ export function BlockProfitability() {
       .filter(
         (t) =>
           t.type === 'exit' &&
-          t.category === 'MARKETING' &&
+          (t.category?.trim().toUpperCase() || '') === 'MARKETING' &&
           (doctorFilter === 'todos' || t.doctor === doctorFilter),
       )
       .reduce((s, t) => s + t.amount, 0)
     const otherCosts =
       filteredTxs
-        .filter((t) => t.type === 'exit' && t.category !== 'MARKETING')
+        .filter(
+          (t) => t.type === 'exit' && (t.category?.trim().toUpperCase() || '') !== 'MARKETING',
+        )
         .reduce((s, t) => s + t.amount, 0) * prorate
     const totalCosts = mkt + otherCosts
 
@@ -73,22 +75,39 @@ export function BlockProfitability() {
               'SECRETARIA',
               'CONTADOR',
               'IMPOSTOS/TAXAS',
-            ].includes(t.category),
+            ].includes(t.category?.trim().toUpperCase() || ''),
         )
         .reduce((s, t) => s + t.amount, 0) * prorate
     const supTxs =
       filteredTxs
-        .filter((t) => t.type === 'exit' && t.category === 'MATERIAL E INSUMO')
+        .filter(
+          (t) =>
+            t.type === 'exit' && (t.category?.trim().toUpperCase() || '') === 'MATERIAL E INSUMO',
+        )
         .reduce((s, t) => s + t.amount, 0) * prorate
 
+    let monthsCount = 1
+    if (period === 'last_3_months') monthsCount = 3
+    else if (period === 'last_6_months') monthsCount = 6
+    else if (period === 'current_year') monthsCount = new Date().getMonth() + 1
+    else if (period === 'last_year') monthsCount = 12
+    else if (period === 'always') {
+      const dates = filteredTxs.map(
+        (t) => new Date(t.date).getFullYear() * 12 + new Date(t.date).getMonth(),
+      )
+      if (dates.length > 0) {
+        monthsCount = Math.max(...dates) - Math.min(...dates) + 1
+      }
+    }
+
     const varRatio = totalRev > 0 ? (supTxs + mkt) / totalRev : 0
-    const be = varRatio < 1 ? fixTxs / (1 - varRatio) : 0
+    const be = varRatio < 1 ? fixTxs / monthsCount / (1 - varRatio) : 0
     const avgTkt = entries.length > 0 ? totalRev / entries.length : 0
     const beCons = avgTkt > 0 ? be / avgTkt : 0
     const opIdx = totalRev > 0 ? (totalCosts / totalRev) * 100 : 0
 
     return { consMarginPct, consMarginVal, procMarginPct, procMarginVal, be, beCons, opIdx }
-  }, [filteredTxs, doctorFilter])
+  }, [filteredTxs, doctorFilter, period])
 
   const getColor = (v: number, invert = false) => {
     if (invert) return v <= 55 ? 'text-green-600' : v <= 70 ? 'text-yellow-600' : 'text-red-600'

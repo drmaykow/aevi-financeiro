@@ -56,6 +56,33 @@ export const getTransactions = async () => {
     .getFullList<TransactionRecord>({ sort: '-created', expand: 'card_machine' })
 }
 
+export interface PaginatedTransactions {
+  items: TransactionRecord[]
+  totalItems: number
+  totalPages: number
+  page: number
+  perPage: number
+}
+
+export const getTransactionsPaginated = async (
+  page: number,
+  limit: number,
+  options?: { filter?: string; sort?: string },
+): Promise<PaginatedTransactions> => {
+  const result = await pb.collection('transactions').getList<TransactionRecord>(page, limit, {
+    filter: options?.filter,
+    sort: options?.sort || '-created',
+    expand: 'card_machine',
+  })
+  return {
+    items: result.items,
+    totalItems: result.totalItems,
+    totalPages: result.totalPages,
+    page: result.page,
+    perPage: result.perPage,
+  }
+}
+
 export const createTransaction = (data: Partial<TransactionRecord>) =>
   pb.collection('transactions').create<TransactionRecord>(data)
 

@@ -24,7 +24,11 @@ import {
   MoreHorizontal,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { getTransactions, TransactionRecord, deleteTransaction } from '@/services/transactions'
+import {
+  getTransactionsPaginated,
+  TransactionRecord,
+  deleteTransaction,
+} from '@/services/transactions'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,11 +50,38 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
+import { getDateFilter, generatePagination } from '@/lib/pagination-utils'
 
 export default function Saidas() {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
+
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(25)
+  const [period, setPeriod] = useState('Mês atual')
+  const [loading, setLoading] = useState(true)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'desc' | 'asc' | null }>({
     key: '',
     direction: null,
@@ -66,28 +97,58 @@ export default function Saidas() {
   const [isBulkDialogOp, setIsBulkDialogOp] = useState(false)
   const [isDeletingBulk, setIsDeletingBulk] = useState(false)
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 500)
+    return () => clearTimeout(t)
+  }, [search])
+
   const loadData = async () => {
+    setLoading(true)
     try {
-      const res = await getTransactions()
-      setTransactions(res)
+      const typeFilter = "type = 'exit'"
+      const dateFilter = getDateFilter(period)
+
+      const filters = [typeFilter]
+      if (dateFilter) filters.push(dateFilter)
+      if (debouncedSearch) {
+        const safeSearch = debouncedSearch.replace(/"/g, '\\"')
+        filters.push(`(description ~ "${safeSearch}" || category ~ "${safeSearch}")`)
+      }
+
+      let sortStr = '-date'
+      if (sortConfig.key && sortConfig.direction) {
+        sortStr = sortConfig.direction === 'desc' ? `-${sortConfig.key}` : sortConfig.key
+      }
+
+      const res = await getTransactionsPaginated(page, limit, {
+        filter: filters.join(' && '),
+        sort: sortStr,
+      })
+
+      setTransactions(res.items)
+      setTotalItems(res.totalItems)
+      setTotalPages(res.totalPages)
+
+      setSelectedIds(new Set())
+      setLastSelectedIdx(null)
     } catch (e) {
       console.error(e)
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
     loadData()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, period, debouncedSearch, sortConfig.key, sortConfig.direction])
+
   useRealtime('transactions', () => {
     loadData()
   })
-
-  const expenses = transactions.filter(
-    (t) =>
-      t.type === 'exit' &&
-      ((t.description || '').toLowerCase().includes(search.toLowerCase()) ||
-        (t.category || '').toLowerCase().includes(search.toLowerCase())),
-  )
 
   const handleSort = (key: string) => {
     let direction: 'desc' | 'asc' | null = 'desc'
@@ -95,7 +156,18 @@ export default function Saidas() {
       if (sortConfig.direction === 'desc') direction = 'asc'
       else if (sortConfig.direction === 'asc') direction = null
     }
-    setSortConfig({ key, direction })
+    setSortConfig({ key: direction ? key : '', direction })
+    setPage(1)
+  }
+
+  const handlePeriodChange = (val: string) => {
+    setPeriod(val)
+    setPage(1)
+  }
+
+  const handleLimitChange = (val: number) => {
+    setLimit(val)
+    setPage(1)
   }
 
   const SortableHeader = ({
@@ -131,37 +203,13 @@ export default function Saidas() {
     )
   }
 
-  const sortedExpenses = [...expenses].sort((a, b) => {
-    if (!sortConfig.direction || !sortConfig.key) return 0
-
-    let aVal: any = a[sortConfig.key]
-    let bVal: any = b[sortConfig.key]
-
-    if (sortConfig.key === 'date') {
-      aVal = new Date(a.date).getTime()
-      bVal = new Date(b.date).getTime()
-    } else {
-      aVal = aVal || ''
-      bVal = bVal || ''
-    }
-
-    if (aVal === bVal) return 0
-
-    if (typeof aVal === 'string' && typeof bVal === 'string') {
-      return sortConfig.direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
-    }
-
-    const modifier = sortConfig.direction === 'asc' ? 1 : -1
-    return aVal < bVal ? -1 * modifier : 1 * modifier
-  })
-
   const isMedico = user?.role === 'medico'
-  const isAllSelected = sortedExpenses.length > 0 && selectedIds.size === sortedExpenses.length
-  const isSomeSelected = selectedIds.size > 0 && selectedIds.size < sortedExpenses.length
+  const isAllSelected = transactions.length > 0 && selectedIds.size === transactions.length
+  const isSomeSelected = selectedIds.size > 0 && selectedIds.size < transactions.length
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(sortedExpenses.map((tx) => tx.id)))
+      setSelectedIds(new Set(transactions.map((tx) => tx.id as string)))
     } else {
       setSelectedIds(new Set())
     }
@@ -176,10 +224,11 @@ export default function Saidas() {
       const start = Math.min(lastSelectedIdx, index)
       const end = Math.max(lastSelectedIdx, index)
       for (let i = start; i <= end; i++) {
+        const rowId = transactions[i].id as string
         if (targetState) {
-          newSelected.add(sortedExpenses[i].id)
+          newSelected.add(rowId)
         } else {
-          newSelected.delete(sortedExpenses[i].id)
+          newSelected.delete(rowId)
         }
       }
     } else {
@@ -218,17 +267,32 @@ export default function Saidas() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="relative max-w-sm w-full">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            size={18}
-          />
-          <Input
-            placeholder="Buscar despesas..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 rounded-full bg-card border-none shadow-sm focus-visible:ring-primary h-10"
-          />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          <div className="relative max-w-sm w-full sm:w-[300px]">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              size={18}
+            />
+            <Input
+              placeholder="Buscar despesas..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 rounded-full bg-card border-none shadow-sm focus-visible:ring-primary h-10"
+            />
+          </div>
+          <Select value={period} onValueChange={handlePeriodChange}>
+            <SelectTrigger className="w-[180px] h-10 rounded-full bg-card shadow-sm border-none">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-elevation border-0">
+              <SelectItem value="Mês atual">Mês atual</SelectItem>
+              <SelectItem value="Mês anterior">Mês anterior</SelectItem>
+              <SelectItem value="Últimos 3 meses">Últimos 3 meses</SelectItem>
+              <SelectItem value="Últimos 6 meses">Últimos 6 meses</SelectItem>
+              <SelectItem value="Ano atual">Ano atual</SelectItem>
+              <SelectItem value="Sempre">Sempre</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
@@ -274,7 +338,32 @@ export default function Saidas() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedExpenses.length === 0 ? (
+              {loading ? (
+                Array.from({ length: limit }).map((_, i) => (
+                  <TableRow key={i}>
+                    {isMedico && (
+                      <TableCell className="pl-4">
+                        <Skeleton className="h-5 w-5" />
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-48" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24 ml-auto" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-8 ml-auto" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : transactions.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={isMedico ? 6 : 5}
@@ -284,12 +373,12 @@ export default function Saidas() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedExpenses.map((tx, index) => (
+                transactions.map((tx, index) => (
                   <TableRow
                     key={tx.id}
                     className={cn(
                       'hover:bg-muted/50 border-border/50 transition-colors',
-                      selectedIds.has(tx.id) && 'bg-muted/50',
+                      selectedIds.has(tx.id as string) && 'bg-muted/50',
                     )}
                   >
                     {isMedico && (
@@ -298,12 +387,12 @@ export default function Saidas() {
                           onClickCapture={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            handleSelectRow(tx.id, index, e.shiftKey)
+                            handleSelectRow(tx.id as string, index, e.shiftKey)
                           }}
                           className="flex h-5 w-5 items-center justify-center cursor-pointer"
                         >
                           <Checkbox
-                            checked={selectedIds.has(tx.id)}
+                            checked={selectedIds.has(tx.id as string)}
                             className="pointer-events-none"
                             tabIndex={-1}
                           />
@@ -358,6 +447,66 @@ export default function Saidas() {
           </Table>
         </CardContent>
       </Card>
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+        <div>
+          Exibindo {totalItems > 0 ? (page - 1) * limit + 1 : 0}–
+          {Math.min(page * limit, totalItems)} de {totalItems} registros
+        </div>
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
+          <div className="flex items-center gap-2">
+            <span>Itens por página:</span>
+            <Select value={String(limit)} onValueChange={(v) => handleLimitChange(Number(v))}>
+              <SelectTrigger className="w-[70px] h-8 bg-card border-none shadow-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => page > 1 && setPage(page - 1)}
+                  className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              {generatePagination(page, totalPages).map((p, i) => (
+                <PaginationItem key={i}>
+                  {p === '...' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      onClick={() => setPage(p as number)}
+                      isActive={page === p}
+                      className={cn(
+                        'cursor-pointer',
+                        page === p && 'bg-primary text-white hover:bg-primary/90 hover:text-white',
+                      )}
+                    >
+                      {p}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => page < totalPages && setPage(page + 1)}
+                  className={
+                    page === totalPages || totalPages === 0
+                      ? 'pointer-events-none opacity-50'
+                      : 'cursor-pointer'
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      </div>
 
       <EditTransactionModal
         transaction={editingTx}
