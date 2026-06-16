@@ -75,6 +75,7 @@ export function BlockProfitability() {
               'SECRETARIA',
               'CONTADOR',
               'IMPOSTOS/TAXAS',
+              'FOLHA DE PAGAMENTO',
             ].includes(t.category?.trim().toUpperCase() || ''),
         )
         .reduce((s, t) => s + t.amount, 0) * prorate
@@ -82,7 +83,8 @@ export function BlockProfitability() {
       filteredTxs
         .filter(
           (t) =>
-            t.type === 'exit' && (t.category?.trim().toUpperCase() || '') === 'MATERIAL E INSUMO',
+            t.type === 'exit' &&
+            ['MATERIAL E INSUMO', 'SUPRIMENTOS'].includes(t.category?.trim().toUpperCase() || ''),
         )
         .reduce((s, t) => s + t.amount, 0) * prorate
 
@@ -91,12 +93,12 @@ export function BlockProfitability() {
     else if (period === 'last_6_months') monthsCount = 6
     else if (period === 'current_year') monthsCount = new Date().getMonth() + 1
     else if (period === 'last_year') monthsCount = 12
-    else if (period === 'always') {
+    else if (period === 'always' || period === 'custom') {
       const dates = filteredTxs.map(
         (t) => new Date(t.date).getFullYear() * 12 + new Date(t.date).getMonth(),
       )
       if (dates.length > 0) {
-        monthsCount = Math.max(...dates) - Math.min(...dates) + 1
+        monthsCount = Math.max(1, Math.max(...dates) - Math.min(...dates) + 1)
       }
     }
 

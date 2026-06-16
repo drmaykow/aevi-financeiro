@@ -3,6 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -32,6 +39,7 @@ export function EditTransactionModal({
         category: transaction.category || '',
         patient: transaction.patient || '',
         doctor: transaction.doctor || '',
+        patient_source: transaction.patient_source || '',
       })
     }
   }, [transaction])
@@ -47,6 +55,7 @@ export function EditTransactionModal({
         category: formData.category,
         patient: formData.patient,
         doctor: formData.doctor,
+        patient_source: formData.patient_source,
       })
       toast({ title: 'Sucesso', description: 'Registro atualizado com sucesso.' })
       onSuccess()
@@ -119,6 +128,38 @@ export function EditTransactionModal({
                   onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
                   className="rounded-xl h-11 bg-muted/50 border-transparent"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Origem do Paciente</Label>
+                <Select
+                  value={formData.patient_source}
+                  onValueChange={(val) => setFormData({ ...formData, patient_source: val })}
+                >
+                  <SelectTrigger className="rounded-xl h-11 bg-muted/50 border-transparent">
+                    <SelectValue placeholder="Selecione a origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      'Google',
+                      'Seguimento',
+                      'Médico(a)',
+                      'Paciente',
+                      'Facebook',
+                      'Instagram',
+                      'Tik Tok',
+                      'Chat GPT',
+                      'Youtube',
+                      'Doctorália',
+                      'ECO',
+                      'Desconhecido',
+                      'Outros',
+                    ].map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}
