@@ -40,6 +40,7 @@ export function EditTransactionModal({
         patient: transaction.patient || '',
         doctor: transaction.doctor || '',
         patient_source: transaction.patient_source || '',
+        payment_method: transaction.payment_method || '',
       })
     }
   }, [transaction])
@@ -56,6 +57,7 @@ export function EditTransactionModal({
         patient: formData.patient,
         doctor: formData.doctor,
         patient_source: formData.patient_source,
+        payment_method: formData.payment_method,
       })
       toast({ title: 'Sucesso', description: 'Registro atualizado com sucesso.' })
       onSuccess()
@@ -128,6 +130,22 @@ export function EditTransactionModal({
                   onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
                   className="rounded-xl h-11 bg-muted/50 border-transparent"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Método de Pagamento</Label>
+                <Select
+                  value={formData.payment_method}
+                  onValueChange={(val) => setFormData({ ...formData, payment_method: val })}
+                >
+                  <SelectTrigger className="rounded-xl h-11 bg-muted/50 border-transparent">
+                    <SelectValue placeholder="Selecione o método" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PIX">PIX</SelectItem>
+                    <SelectItem value="DINHEIRO">DINHEIRO</SelectItem>
+                    <SelectItem value="CARTÃO DE CRÉDITO">CARTÃO DE CRÉDITO</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Origem do Paciente</Label>
