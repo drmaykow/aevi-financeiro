@@ -84,7 +84,6 @@ export default function Index() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="seu@email.com.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -96,7 +95,6 @@ export default function Index() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -110,11 +108,6 @@ export default function Index() {
               >
                 {loading ? 'Entrando...' : 'Acessar'}
               </Button>
-              <div className="text-xs text-center text-muted-foreground pt-4">
-                <p>Contas de teste (Senha: Skip@Pass123):</p>
-                <p>maykow@hotmail.com.br (Médico)</p>
-                <p>secretaria@clinicaaevi.com.br (Secretária)</p>
-              </div>
             </form>
           </CardContent>
         </Card>
