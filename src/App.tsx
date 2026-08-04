@@ -11,6 +11,7 @@ import Relatorios from './pages/Relatorios'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import FinanceiroSecretaria from './pages/FinanceiroSecretaria'
+import MicroscopiaControle from './pages/MicroscopiaControle'
 import Configuracoes from './pages/Configuracoes'
 import LogAudit from './pages/LogAudit'
 import Usuarios from './pages/Usuarios'
@@ -44,6 +45,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['secretaria', 'medico']}>
                 <FinanceiroSecretaria />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/microscopia-controle"
+            element={
+              <ProtectedRoute allowedRoles={['secretaria', 'medico']}>
+                <MicroscopiaControle />
               </ProtectedRoute>
             }
           />
