@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Trash2, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { HeaderNav } from '@/components/financeiro/HeaderNav'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   getRecentTransactions,
@@ -234,32 +235,35 @@ export default function FinanceiroSecretaria() {
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Aevi Financeiro</h1>
             <p className="text-muted-foreground mt-1">Gestão Diária de Caixa</p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 rounded-full border-border">
-                <User size={16} /> {user?.name || user?.email?.split('@')[0]}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 rounded-xl">
-              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setIsPasswordModalOpen(true)}
-                className="cursor-pointer"
-              >
-                Mudar Senha
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  signOut()
-                  navigate('/')
-                }}
-                className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
-              >
-                <LogOut size={16} className="mr-2" /> Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-3">
+            <HeaderNav />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2 rounded-full border-border">
+                  <User size={16} /> {user?.name || user?.email?.split('@')[0]}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="cursor-pointer"
+                >
+                  Mudar Senha
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    signOut()
+                    navigate('/')
+                  }}
+                  className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <LogOut size={16} className="mr-2" /> Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
         {renderView()}
 
