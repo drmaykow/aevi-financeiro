@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { getCardMachines, CardMachine } from '@/services/settings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,6 +30,13 @@ export function EditTransactionModal({
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<any>({})
+  const [machines, setMachines] = useState<CardMachine[]>([])
+
+  useEffect(() => {
+    if (open) {
+      getCardMachines().then(setMachines).catch(console.error)
+    }
+  }, [open])
 
   useEffect(() => {
     if (transaction) {
@@ -41,6 +49,8 @@ export function EditTransactionModal({
         doctor: transaction.doctor || '',
         patient_source: transaction.patient_source || '',
         payment_method: transaction.payment_method || '',
+        card_machine: transaction.card_machine || '',
+        installments: transaction.installments || 1,
       })
     }
   }, [transaction])
@@ -49,16 +59,43 @@ export function EditTransactionModal({
     if (!transaction?.id) return
     setLoading(true)
     try {
-      await pb.collection('transactions').update(transaction.id, {
+      const amount = Number(formData.amount)
+      let payload: any = {
         date: formData.date ? `${formData.date} 12:00:00.000Z` : transaction.date,
-        amount: Number(formData.amount),
+        amount,
         description: formData.description,
         category: formData.category,
         patient: formData.patient,
         doctor: formData.doctor,
         patient_source: formData.patient_source,
         payment_method: formData.payment_method,
-      })
+      }
+
+      if (formData.payment_method === 'CARTÃO DE CRÉDITO') {
+        const machine = machines.find((m) => m.id === formData.card_machine)
+        const inst = Number(formData.installments) || 1
+        let feePercent = 0
+        if (machine && machine.fees && machine.fees[inst.toString()] !== undefined) {
+          feePercent = Number(machine.fees[inst.toString()])
+        }
+
+        const feeAmount = (amount * feePercent) / 100
+        const netAmount = amount - feeAmount
+
+        payload.card_machine = formData.card_machine
+        payload.installments = inst
+        payload.card_fee_percent = feePercent
+        payload.card_fee_amount = feeAmount
+        payload.net_amount = netAmount
+      } else if (transaction.type === 'entry') {
+        payload.card_machine = null
+        payload.installments = null
+        payload.card_fee_percent = 0
+        payload.card_fee_amount = 0
+        payload.net_amount = amount
+      }
+
+      await pb.collection('transactions').update(transaction.id, payload)
       toast({ title: 'Sucesso', description: 'Registro atualizado com sucesso.' })
       onSuccess()
       onOpenChange(false)
@@ -77,7 +114,7 @@ export function EditTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-3xl p-6">
+      <DialogContent className="sm:max-w-md rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-primary mb-4">
             Editar Lançamento
@@ -147,6 +184,48 @@ export function EditTransactionModal({
                   </SelectContent>
                 </Select>
               </div>
+              {formData.payment_method === 'CARTÃO DE CRÉDITO' && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Máquininha</Label>
+                    <Select
+                      value={formData.card_machine}
+                      onValueChange={(val) => setFormData({ ...formData, card_machine: val })}
+                    >
+                      <SelectTrigger className="rounded-xl h-11 bg-muted/50 border-transparent">
+                        <SelectValue placeholder="Selecione a máquina" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {machines.map((m) => (
+                          <SelectItem key={m.id} value={m.id!}>
+                            {m.name} {m.settlement_mode ? `(${m.settlement_mode})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Parcelas</Label>
+                    <Select
+                      value={String(formData.installments || 1)}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, installments: Number(val) })
+                      }
+                    >
+                      <SelectTrigger className="rounded-xl h-11 bg-muted/50 border-transparent">
+                        <SelectValue placeholder="Selecione as parcelas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <SelectItem key={i + 1} value={String(i + 1)}>
+                            {i + 1}x
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
               <div className="space-y-2">
                 <Label>Origem do Paciente</Label>
                 <Select
@@ -183,7 +262,9 @@ export function EditTransactionModal({
           )}
           <Button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={
+              loading || (formData.payment_method === 'CARTÃO DE CRÉDITO' && !formData.card_machine)
+            }
             className="w-full rounded-full bg-primary hover:bg-primary/90 h-11 mt-4"
           >
             Salvar
