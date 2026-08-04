@@ -87,13 +87,3 @@ export const createTransaction = (data: Partial<TransactionRecord>) =>
   pb.collection('transactions').create<TransactionRecord>(data)
 
 export const deleteTransaction = (id: string) => pb.collection('transactions').delete(id)
-
-export const getMicroscopiaTransactions = async (): Promise<TransactionRecord[]> => {
-  const items = await pb.collection('transactions').getFullList<TransactionRecord>({ sort: 'date' })
-  return items.filter((t) => {
-    if (!t.procedures || !Array.isArray(t.procedures)) return false
-    return t.procedures.some(
-      (p) => typeof p === 'string' && p.toLowerCase().includes('microscopia'),
-    )
-  })
-}

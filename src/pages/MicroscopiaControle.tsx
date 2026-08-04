@@ -1,189 +1,331 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { getMicroscopiaTransactions, type TransactionRecord } from '@/services/transactions'
-import { useRealtime } from '@/hooks/use-realtime'
-import { Input } from '@/components/ui/input'
+import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { useNavigate } from 'react-router-dom'
+import { LogOut, User, Clock, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
+import { useRealtime } from '@/hooks/use-realtime'
+import { getMicroscopiaPatients, PatientMicroscopia } from '@/services/microscopia'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { HeaderNav } from '@/components/financeiro/HeaderNav'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Search, ArrowLeft, Microscope, History as HistoryIcon } from 'lucide-react'
-import { cn, formatDate } from '@/lib/utils'
-
-interface PatientData {
-  patient: string
-  total: number
-  status: 1 | 2 | 3
-  history: { date: string; label: string; id?: string }[]
-}
-
-function getCycleStatus(total: number): 1 | 2 | 3 {
-  const r = total % 3
-  return r === 0 ? 3 : r
-}
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import pb from '@/lib/pocketbase/client'
+import { useToast } from '@/hooks/use-toast'
 
 function getCycleLabel(index: number): string {
-  return `${(index % 3) + 1}ª`
+  const cycle = (index % 3) + 1
+  const suffix = cycle === 1 ? 'ª' : cycle === 2 ? 'ª' : 'ª'
+  return `${cycle}${suffix} lâmina`
 }
 
-function buildPatientData(records: TransactionRecord[]): PatientData[] {
-  const grouped = new Map<string, TransactionRecord[]>()
-  for (const t of records) {
-    const name = t.patient?.trim() || 'Sem paciente'
-    if (!grouped.has(name)) grouped.set(name, [])
-    grouped.get(name)!.push(t)
+function CycleBadge({ count }: { count: number }) {
+  if (count === 1) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200">
+        🟢 1
+      </span>
+    )
   }
-  const result: PatientData[] = []
-  for (const [patient, recs] of grouped) {
-    const sorted = [...recs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    result.push({
-      patient,
-      total: sorted.length,
-      status: getCycleStatus(sorted.length),
-      history: sorted.map((r, i) => ({
-        date: r.date,
-        label: getCycleLabel(i),
-        id: r.id,
-      })),
-    })
+  if (count === 2) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700 border border-yellow-300 shadow-sm">
+        🟡 2 — Atenção: próxima gera consulta
+      </span>
+    )
   }
-  return result.sort((a, b) => a.patient.localeCompare(b.patient))
+  return (
+    <span className="inline-flex items-col gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-300 shadow-sm animate-fade-in">
+      🔴 3 — Lembrar de cobrar nova consulta
+    </span>
+  )
+}
+
+function HistoryModal({
+  patient,
+  open,
+  onOpenChange,
+}: {
+  patient: PatientMicroscopia | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  if (!patient) return null
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[480px] rounded-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Clock size={20} className="text-primary" />
+            Histórico — {patient.patient}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2 pt-2 max-h-[60vh] overflow-y-auto">
+          {patient.records.map((record, idx) => (
+            <div
+              key={record.id}
+              className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/50"
+            >
+              <span className="font-semibold text-sm text-foreground">{getCycleLabel(idx)}</span>
+              <span className="text-sm text-muted-foreground">{formatDate(record.date)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-full">
+            Fechar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export default function MicroscopiaControle() {
-  const [records, setRecords] = useState<TransactionRecord[]>([])
-  const [search, setSearch] = useState('')
-  const [historyData, setHistoryData] = useState<PatientData | null>(null)
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  const { toast } = useToast()
+  const [patients, setPatients] = useState<PatientMicroscopia[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedPatient, setSelectedPatient] = useState<PatientMicroscopia | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const loadData = async () => {
-    const items = await getMicroscopiaTransactions()
-    setRecords(items)
-  }
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+
+  const loadData = useCallback(async () => {
+    try {
+      const data = await getMicroscopiaPatients()
+      setPatients(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   useRealtime('transactions', () => {
     loadData()
   })
 
-  const patientData = useMemo(() => buildPatientData(records), [records])
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Erro', description: 'As senhas não coincidem.', variant: 'destructive' })
+      return
+    }
+    try {
+      setChangingPassword(true)
+      await pb.collection('users').update(user.id, {
+        oldPassword,
+        password: newPassword,
+        passwordConfirm: confirmPassword,
+      })
+      toast({ title: 'Senha atualizada com sucesso!' })
+      setIsPasswordModalOpen(false)
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error: any) {
+      toast({ title: 'Erro ao mudar senha.', description: error.message, variant: 'destructive' })
+    } finally {
+      setChangingPassword(false)
+    }
+  }
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    if (!q) return patientData
-    return patientData.filter(
-      (p) => p.patient.toLowerCase().includes(q) || String(p.total).includes(q),
-    )
-  }, [patientData, search])
+  const openHistory = (patient: PatientMicroscopia) => {
+    setSelectedPatient(patient)
+    setModalOpen(true)
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-background">
-        <div className="container mx-auto flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/financeiro">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <Microscope className="h-5 w-5 text-primary" />
-          <h1 className="text-lg font-semibold">Microscopia - Controle</h1>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+              Controle de Microscopia
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Acompanhamento de ciclos por paciente
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <HeaderNav />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2 rounded-full border-border">
+                  <User size={16} /> {user?.name || user?.email?.split('@')[0]}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="cursor-pointer"
+                >
+                  Mudar Senha
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    signOut()
+                    navigate('/')
+                  }}
+                  className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <LogOut size={16} className="mr-2" /> Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
 
-      <main className="container mx-auto px-4 py-6">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle>Pacientes</CardTitle>
-              <div className="relative w-full sm:max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <p className="text-muted-foreground">Carregando...</p>
+          </div>
+        ) : patients.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-muted-foreground text-lg">
+              Nenhum paciente com microscopia encontrado.
+            </p>
+            <p className="text-muted-foreground/70 text-sm mt-2">
+              Registros aparecerão aqui automaticamente quando houver lançamentos com o procedimento
+              "Microscopia".
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-elevation overflow-hidden animate-fade-in">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50 text-left">
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">Paciente</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground text-center">
+                      Contagem
+                    </th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">
+                      Data da Última Coleta
+                    </th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground text-center">
+                      Histórico
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {patients.map((p) => (
+                    <tr
+                      key={p.patient}
+                      className={`border-b border-border/30 transition-colors hover:bg-muted/30 ${
+                        p.cycleCount >= 2 ? 'bg-yellow-50/50' : ''
+                      } ${p.cycleCount === 3 ? 'bg-red-50/60' : ''}`}
+                    >
+                      <td className="px-4 py-3 font-medium text-foreground">{p.patient}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-xs">
+                          {p.cycleCount}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{formatDate(p.lastDate)}</td>
+                      <td className="px-4 py-3">
+                        <CycleBadge count={p.cycleCount} />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openHistory(p)}
+                          className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+                        >
+                          <Clock size={18} />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <HistoryModal patient={selectedPatient} open={modalOpen} onOpenChange={setModalOpen} />
+
+        <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+          <DialogContent className="sm:max-w-[425px] rounded-3xl">
+            <DialogHeader>
+              <DialogTitle>Mudar Senha</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handlePasswordChange} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="oldPassword">Senha Atual</Label>
                 <Input
-                  placeholder="Buscar por nome ou número..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8"
+                  id="oldPassword"
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  required
+                  className="rounded-xl h-10"
                 />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead className="text-center">Contagem</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Histórico</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((p) => (
-                  <TableRow key={p.patient}>
-                    <TableCell className="font-medium">{p.patient}</TableCell>
-                    <TableCell className="text-center">
-                      <span className="text-lg font-bold">{p.total}</span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        className={cn(
-                          'min-w-[2rem] justify-center',
-                          p.status === 1 && 'bg-green-500 text-white hover:bg-green-600',
-                          p.status === 2 && 'bg-yellow-500 text-white hover:bg-yellow-600',
-                          p.status === 3 && 'bg-red-500 text-white hover:bg-red-600',
-                        )}
-                      >
-                        {p.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Button variant="outline" size="sm" onClick={() => setHistoryData(p)}>
-                        <HistoryIcon className="mr-1 h-4 w-4" />
-                        Histórico
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {filtered.length === 0 && (
-              <p className="py-8 text-center text-muted-foreground">Nenhum paciente encontrado.</p>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-
-      <Dialog
-        open={!!historyData}
-        onOpenChange={(open) => {
-          if (!open) setHistoryData(null)
-        }}
-      >
-        <DialogContent className="max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Histórico — {historyData?.patient}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            {historyData?.history.map((h, i) => (
-              <div key={h.id || i} className="flex items-center gap-3 rounded-lg border p-3">
-                <Badge variant="outline" className="min-w-[2.5rem] justify-center font-semibold">
-                  {h.label}
-                </Badge>
-                <span className="text-sm text-muted-foreground">{formatDate(h.date)}</span>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Nova Senha</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="rounded-xl h-10"
+                />
               </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="rounded-xl h-10"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="rounded-full"
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={changingPassword} className="rounded-full">
+                  {changingPassword ? 'Salvando...' : 'Salvar Senha'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   )
 }
