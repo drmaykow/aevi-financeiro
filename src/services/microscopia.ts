@@ -11,15 +11,17 @@ export interface MicroscopiaRecord {
 export interface PatientMicroscopia {
   patient: string
   records: MicroscopiaRecord[]
+  totalCount: number
   cycleCount: number
   lastDate: string
+  lastProcedureDate: string
+  daysSinceLastProcedure: number
 }
 
-function isMicroscopia(tx: TransactionRecord): boolean {
+function hasProcedure(tx: TransactionRecord, procedureName: string): boolean {
   if (tx.type !== 'entry') return false
-  if (!tx.procedures) return false
-  if (!Array.isArray(tx.procedures)) return false
-  return tx.procedures.includes('Microscopia')
+  if (!tx.procedures || !Array.isArray(tx.procedures)) return false
+  return tx.procedures.includes(procedureName)
 }
 
 export async function getMicroscopiaPatients(): Promise<PatientMicroscopia[]> {
@@ -28,11 +30,22 @@ export async function getMicroscopiaPatients(): Promise<PatientMicroscopia[]> {
     sort: 'date',
   })
 
-  const microscopyTx = allEntries.filter(isMicroscopia)
+  const microscopiaTx = allEntries.filter((tx) => hasProcedure(tx, 'Microscopia'))
+  const seguimentoTx = allEntries.filter((tx) => hasProcedure(tx, 'Seguimento'))
+
+  const seguimentoByPatient = new Map<string, string[]>()
+  for (const tx of seguimentoTx) {
+    const patientName = (tx.patient || '').trim()
+    if (!patientName) continue
+    if (!seguimentoByPatient.has(patientName)) {
+      seguimentoByPatient.set(patientName, [])
+    }
+    seguimentoByPatient.get(patientName)!.push(tx.date)
+  }
 
   const grouped = new Map<string, MicroscopiaRecord[]>()
 
-  for (const tx of microscopyTx) {
+  for (const tx of microscopiaTx) {
     const patientName = (tx.patient || 'Desconhecido').trim()
     if (!patientName || patientName === 'Desconhecido') continue
 
@@ -49,19 +62,46 @@ export async function getMicroscopiaPatients(): Promise<PatientMicroscopia[]> {
     grouped.get(patientName)!.push(record)
   }
 
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+
   const patients: PatientMicroscopia[] = []
 
   for (const [patientName, records] of grouped) {
     records.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-    const cycleCount = records.length === 0 ? 0 : ((records.length - 1) % 3) + 1
+    const totalCount = records.length
+
+    const seguimentoDates = seguimentoByPatient.get(patientName) || []
+    const hasRecentSeguimento = seguimentoDates.some((dateStr) => {
+      const segDate = new Date(dateStr)
+      segDate.setHours(0, 0, 0, 0)
+      const diffDays = Math.floor((now.getTime() - segDate.getTime()) / (1000 * 60 * 60 * 24))
+      return diffDays <= 30 && diffDays >= 0
+    })
+
+    const cycleCount = hasRecentSeguimento ? 0 : ((totalCount - 1) % 3) + 1
+
     const lastDate = records[records.length - 1].date
+
+    const allDates = [...records.map((r) => r.date), ...seguimentoDates]
+    allDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+    const lastProcedureDate = allDates[allDates.length - 1]
+
+    const lastProcDate = new Date(lastProcedureDate)
+    lastProcDate.setHours(0, 0, 0, 0)
+    const daysSinceLastProcedure = Math.floor(
+      (now.getTime() - lastProcDate.getTime()) / (1000 * 60 * 60 * 24),
+    )
 
     patients.push({
       patient: patientName,
       records,
+      totalCount,
       cycleCount,
       lastDate,
+      lastProcedureDate,
+      daysSinceLastProcedure,
     })
   }
 

@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User, Clock, X } from 'lucide-react'
+import { LogOut, User, Clock, Search, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useColumnResize } from '@/hooks/use-column-resize'
 import { getMicroscopiaPatients, PatientMicroscopia } from '@/services/microscopia'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 import { HeaderNav } from '@/components/financeiro/HeaderNav'
 import {
   DropdownMenu,
@@ -16,8 +19,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -27,24 +29,21 @@ function getCycleLabel(index: number): string {
   return `${cycle}${suffix} lâmina`
 }
 
-function CycleBadge({ count }: { count: number }) {
-  if (count === 1) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200">
-        🟢 1
-      </span>
-    )
-  }
-  if (count === 2) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700 border border-yellow-300 shadow-sm">
-        🟡 2 — Atenção: próxima gera consulta
-      </span>
-    )
+function StatusBadge({ status }: { status: number }) {
+  const styles: Record<number, string> = {
+    0: 'bg-gray-100 text-gray-600 border-gray-300',
+    1: 'bg-green-100 text-green-700 border-green-200',
+    2: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+    3: 'bg-red-100 text-red-700 border-red-300',
   }
   return (
-    <span className="inline-flex items-col gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-300 shadow-sm animate-fade-in">
-      🔴 3 — Lembrar de cobrar nova consulta
+    <span
+      className={cn(
+        'inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm border',
+        styles[status] ?? styles[0],
+      )}
+    >
+      {status}
     </span>
   )
 }
@@ -98,12 +97,24 @@ export default function MicroscopiaControle() {
   const [loading, setLoading] = useState(true)
   const [selectedPatient, setSelectedPatient] = useState<PatientMicroscopia | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [search, setSearch] = useState('')
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
+
+  const { widths, onResizeStart } = useColumnResize({
+    patient: 200,
+    count: 100,
+    date: 160,
+    status: 100,
+    days: 100,
+    history: 80,
+  })
+
+  const totalWidth = Object.values(widths).reduce((sum, w) => sum + w, 0)
 
   const loadData = useCallback(async () => {
     try {
@@ -123,6 +134,16 @@ export default function MicroscopiaControle() {
   useRealtime('transactions', () => {
     loadData()
   })
+
+  const filteredPatients = useMemo(() => {
+    if (!search.trim()) return patients
+    const trimmed = search.trim()
+    if (/^\d+$/.test(trimmed)) {
+      const num = parseInt(trimmed, 10)
+      return patients.filter((p) => p.totalCount === num)
+    }
+    return patients.filter((p) => p.patient.toLowerCase().includes(trimmed.toLowerCase()))
+  }, [patients, search])
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -153,6 +174,13 @@ export default function MicroscopiaControle() {
     setSelectedPatient(patient)
     setModalOpen(true)
   }
+
+  const resizeHandle = (column: string) => (
+    <div
+      className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/40 transition-colors duration-150 z-10"
+      onMouseDown={onResizeStart(column)}
+    />
+  )
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -213,53 +241,123 @@ export default function MicroscopiaControle() {
           </div>
         ) : (
           <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-elevation overflow-hidden animate-fade-in">
+            <div className="p-4 border-b border-border/50">
+              <div className="relative max-w-sm">
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  placeholder="Buscar por paciente ou contagem..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 rounded-full h-9"
+                />
+              </div>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table
+                className="text-sm table-fixed"
+                style={{ width: totalWidth, minWidth: '100%' }}
+              >
+                <colgroup>
+                  <col style={{ width: widths.patient }} />
+                  <col style={{ width: widths.count }} />
+                  <col style={{ width: widths.date }} />
+                  <col style={{ width: widths.status }} />
+                  <col style={{ width: widths.days }} />
+                  <col style={{ width: widths.history }} />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-border/50 text-left">
-                    <th className="px-4 py-3 font-semibold text-muted-foreground">Paciente</th>
-                    <th className="px-4 py-3 font-semibold text-muted-foreground text-center">
+                    <th className="relative px-4 py-3 font-semibold text-muted-foreground">
+                      Paciente
+                      {resizeHandle('patient')}
+                    </th>
+                    <th className="relative px-4 py-3 font-semibold text-muted-foreground text-center">
                       Contagem
+                      {resizeHandle('count')}
                     </th>
-                    <th className="px-4 py-3 font-semibold text-muted-foreground">
+                    <th className="relative px-4 py-3 font-semibold text-muted-foreground">
                       Data da Última Coleta
+                      {resizeHandle('date')}
                     </th>
-                    <th className="px-4 py-3 font-semibold text-muted-foreground">Status</th>
+                    <th className="relative px-4 py-3 font-semibold text-muted-foreground text-center">
+                      Status
+                      {resizeHandle('status')}
+                    </th>
+                    <th className="relative px-4 py-3 font-semibold text-muted-foreground text-center">
+                      Dias
+                      {resizeHandle('days')}
+                    </th>
                     <th className="px-4 py-3 font-semibold text-muted-foreground text-center">
                       Histórico
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {patients.map((p) => (
-                    <tr
-                      key={p.patient}
-                      className={`border-b border-border/30 transition-colors hover:bg-muted/30 ${
-                        p.cycleCount >= 2 ? 'bg-yellow-50/50' : ''
-                      } ${p.cycleCount === 3 ? 'bg-red-50/60' : ''}`}
-                    >
-                      <td className="px-4 py-3 font-medium text-foreground">{p.patient}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-xs">
-                          {p.cycleCount}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDate(p.lastDate)}</td>
-                      <td className="px-4 py-3">
-                        <CycleBadge count={p.cycleCount} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openHistory(p)}
-                          className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
-                        >
-                          <Clock size={18} />
-                        </Button>
+                  {filteredPatients.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                        Nenhum paciente encontrado.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredPatients.map((p) => (
+                      <tr
+                        key={p.patient}
+                        className={cn(
+                          'border-b border-border/30 transition-colors hover:bg-muted/30',
+                          p.cycleCount >= 2 && 'bg-yellow-50/50',
+                          p.cycleCount === 3 && 'bg-red-50/60',
+                        )}
+                      >
+                        <td className="px-4 py-3 font-medium text-foreground whitespace-normal break-words">
+                          {p.patient}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-xs">
+                            {p.totalCount}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {formatDate(p.lastDate)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <StatusBadge status={p.cycleCount} />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="text-sm text-muted-foreground">
+                              {p.daysSinceLastProcedure}
+                            </span>
+                            {p.daysSinceLastProcedure > 30 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center justify-center text-yellow-600 cursor-help">
+                                    <AlertTriangle size={16} />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Falar com Dra. Ana antes de cobrar/agendar
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openHistory(p)}
+                            className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+                          >
+                            <Clock size={18} />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
