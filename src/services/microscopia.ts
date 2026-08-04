@@ -18,10 +18,17 @@ export interface PatientMicroscopia {
   daysSinceLastProcedure: number
 }
 
+const CUTOFF_DATE = new Date('2026-08-05T00:00:00.000Z')
+const RELEVANT_PROCEDURES = ['Microscopia', 'Seguimento', 'Primeira consulta']
+
 function hasProcedure(tx: TransactionRecord, procedureName: string): boolean {
   if (tx.type !== 'entry') return false
   if (!tx.procedures || !Array.isArray(tx.procedures)) return false
   return tx.procedures.includes(procedureName)
+}
+
+function hasAnyRelevantProcedure(tx: TransactionRecord): boolean {
+  return RELEVANT_PROCEDURES.some((p) => hasProcedure(tx, p))
 }
 
 export async function getMicroscopiaPatients(): Promise<PatientMicroscopia[]> {
@@ -30,24 +37,23 @@ export async function getMicroscopiaPatients(): Promise<PatientMicroscopia[]> {
     sort: 'date',
   })
 
-  const microscopiaTx = allEntries.filter((tx) => hasProcedure(tx, 'Microscopia'))
-  const seguimentoTx = allEntries.filter((tx) => hasProcedure(tx, 'Seguimento'))
+  const filteredEntries = allEntries.filter((tx) => new Date(tx.date) >= CUTOFF_DATE)
 
-  const seguimentoByPatient = new Map<string, string[]>()
-  for (const tx of seguimentoTx) {
-    const patientName = (tx.patient || '').trim()
-    if (!patientName) continue
-    if (!seguimentoByPatient.has(patientName)) {
-      seguimentoByPatient.set(patientName, [])
+  const patientsWithMicroscopia = new Set<string>()
+  for (const tx of filteredEntries) {
+    if (hasProcedure(tx, 'Microscopia')) {
+      const name = (tx.patient || '').trim()
+      if (name) patientsWithMicroscopia.add(name)
     }
-    seguimentoByPatient.get(patientName)!.push(tx.date)
   }
 
   const grouped = new Map<string, MicroscopiaRecord[]>()
 
-  for (const tx of microscopiaTx) {
+  for (const tx of filteredEntries) {
+    if (!hasAnyRelevantProcedure(tx)) continue
     const patientName = (tx.patient || 'Desconhecido').trim()
     if (!patientName || patientName === 'Desconhecido') continue
+    if (!patientsWithMicroscopia.has(patientName)) continue
 
     const record: MicroscopiaRecord = {
       id: tx.id!,
@@ -70,29 +76,35 @@ export async function getMicroscopiaPatients(): Promise<PatientMicroscopia[]> {
   for (const [patientName, records] of grouped) {
     records.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-    const totalCount = records.length
+    const totalCount = records.filter((r) => r.procedures?.includes('Microscopia')).length
 
-    const seguimentoDates = seguimentoByPatient.get(patientName) || []
-    const hasRecentSeguimento = seguimentoDates.some((dateStr) => {
-      const segDate = new Date(dateStr)
-      segDate.setHours(0, 0, 0, 0)
-      const diffDays = Math.floor((now.getTime() - segDate.getTime()) / (1000 * 60 * 60 * 24))
-      return diffDays <= 30 && diffDays >= 0
-    })
+    let cycleCount = 0
+    for (const record of records) {
+      const procs = record.procedures || []
+      const isIsolatedMicroscopia = procs.length === 1 && procs[0] === 'Microscopia'
+      const hasMicroscopia = procs.includes('Microscopia')
+      const hasSeguimento = procs.includes('Seguimento')
+      const hasPrimeiraConsulta = procs.includes('Primeira consulta')
 
-    const cycleCount = hasRecentSeguimento ? 0 : ((totalCount - 1) % 3) + 1
+      if (isIsolatedMicroscopia) {
+        cycleCount += 1
+      } else if (hasMicroscopia && (hasSeguimento || hasPrimeiraConsulta)) {
+        cycleCount = 0
+      }
+    }
 
-    const lastDate = records[records.length - 1].date
-
-    const allDates = [...records.map((r) => r.date), ...seguimentoDates]
-    allDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-    const lastProcedureDate = allDates[allDates.length - 1]
-
+    const lastProcedureDate = records[records.length - 1].date
     const lastProcDate = new Date(lastProcedureDate)
     lastProcDate.setHours(0, 0, 0, 0)
     const daysSinceLastProcedure = Math.floor(
       (now.getTime() - lastProcDate.getTime()) / (1000 * 60 * 60 * 24),
     )
+
+    const microscopiaRecords = records.filter((r) => r.procedures?.includes('Microscopia'))
+    const lastDate =
+      microscopiaRecords.length > 0
+        ? microscopiaRecords[microscopiaRecords.length - 1].date
+        : records[records.length - 1].date
 
     patients.push({
       patient: patientName,

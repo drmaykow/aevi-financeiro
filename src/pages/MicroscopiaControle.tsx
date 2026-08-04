@@ -23,12 +23,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
-function getCycleLabel(index: number): string {
-  const cycle = (index % 3) + 1
-  const suffix = cycle === 1 ? 'ª' : cycle === 2 ? 'ª' : 'ª'
-  return `${cycle}${suffix} lâmina`
-}
-
 function StatusBadge({ status }: { status: number }) {
   const styles: Record<number, string> = {
     0: 'bg-gray-100 text-gray-600 border-gray-300',
@@ -69,13 +63,17 @@ function HistoryModal({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2 pt-2 max-h-[60vh] overflow-y-auto">
-          {patient.records.map((record, idx) => (
+          {patient.records.map((record) => (
             <div
               key={record.id}
-              className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/50"
+              className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 border border-border/50"
             >
-              <span className="font-semibold text-sm text-foreground">{getCycleLabel(idx)}</span>
-              <span className="text-sm text-muted-foreground">{formatDate(record.date)}</span>
+              <span className="font-semibold text-sm text-foreground">
+                {record.procedures?.join(', ') || 'Sem procedimentos'}
+              </span>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {formatDate(record.date)}
+              </span>
             </div>
           ))}
         </div>
