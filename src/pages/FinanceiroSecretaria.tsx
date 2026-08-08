@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export default function FinanceiroSecretaria() {
   const { user, signOut } = useAuth()
@@ -53,6 +54,7 @@ export default function FinanceiroSecretaria() {
   const [view, setView] = useState<'home' | 'consulta'>('home')
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
   const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [oldPassword, setOldPassword] = useState('')
@@ -62,10 +64,13 @@ export default function FinanceiroSecretaria() {
 
   const loadData = async () => {
     try {
+      setLoading(true)
       const res = await getRecentTransactions()
       setTransactions(res.items)
     } catch (e) {
       console.error(e)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -118,102 +123,110 @@ export default function FinanceiroSecretaria() {
 
         <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 shadow-elevation">
           <h3 className="text-lg font-bold mb-4 text-foreground">Últimos Lançamentos</h3>
-          {transactions.filter(
-            (tx) =>
-              tx.type === 'entry' || (tx.type === 'exit' && tx.category === 'ESTORNO DE TAXA'),
-          ).length === 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-center p-3 bg-white rounded-2xl shadow-sm border border-border/50"
+                >
+                  <div className="flex-1 min-w-0 pr-4 space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : transactions.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">Nenhum lançamento encontrado.</p>
           ) : (
             <div className="space-y-3">
-              {transactions
-                .filter(
-                  (tx) =>
-                    tx.type === 'entry' ||
-                    (tx.type === 'exit' && tx.category === 'ESTORNO DE TAXA'),
-                )
-                .slice(0, 20)
-                .map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex justify-between items-center p-3 bg-white rounded-2xl shadow-sm border border-border/50"
-                  >
-                    <div className="flex-1 min-w-0 pr-4">
-                      <p className="font-bold text-sm truncate">
-                        {tx.type === 'entry'
-                          ? tx.entry_type || tx.doctor
-                          : tx.category === 'ESTORNO DE TAXA'
-                            ? '↩️ Estorno de Taxa'
-                            : tx.category}
-                      </p>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs text-muted-foreground truncate">
-                          {tx.patient || tx.description}
-                        </span>
-                        <span className="text-xs font-medium text-muted-foreground/70 whitespace-nowrap ml-2">
-                          {formatDate(tx.date)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 whitespace-nowrap">
-                      <div className="flex flex-col items-end text-right">
-                        <span
-                          className={`font-bold ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
-                        >
-                          {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
-                        </span>
-                        {tx.payment_method && (
-                          <span className="text-xs font-medium text-muted-foreground/70 mt-0.5">
-                            {tx.payment_method}
-                          </span>
-                        )}
-                      </div>
-                      {(!tx.created ||
-                        Date.now() - new Date(tx.created.replace(' ', 'T')).getTime() <=
-                          48 * 3600 * 1000) && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEditingTx(tx)}
-                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                          >
-                            <Edit2 size={16} />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                              >
-                                <Trash2 size={16} />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-3xl">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que quer apagar este lançamento?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel className="rounded-full">
-                                  Cancelar
-                                </AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
-                                  className="bg-destructive text-white rounded-full hover:bg-destructive/90"
-                                >
-                                  Apagar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      )}
+              {transactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex justify-between items-center p-3 bg-white rounded-2xl shadow-sm border border-border/50"
+                >
+                  <div className="flex-1 min-w-0 pr-4">
+                    <p className="font-bold text-sm truncate">
+                      {tx.type === 'entry'
+                        ? tx.entry_type || tx.doctor
+                        : tx.category === 'ESTORNO DE TAXA'
+                          ? '↩️ Estorno de Taxa'
+                          : tx.category}
+                    </p>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-muted-foreground truncate">
+                        {tx.patient || tx.description}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground/70 whitespace-nowrap ml-2">
+                        {formatDate(tx.date)}
+                      </span>
                     </div>
                   </div>
-                ))}
+                  <div className="flex items-center gap-3 whitespace-nowrap">
+                    <div className="flex flex-col items-end text-right">
+                      <span
+                        className={`font-bold ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
+                      >
+                        {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
+                      </span>
+                      {tx.payment_method && (
+                        <span className="text-xs font-medium text-muted-foreground/70 mt-0.5">
+                          {tx.payment_method}
+                        </span>
+                      )}
+                    </div>
+                    {(!tx.created ||
+                      Date.now() - new Date(tx.created.replace(' ', 'T')).getTime() <=
+                        48 * 3600 * 1000) && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingTx(tx)}
+                          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                        >
+                          <Edit2 size={16} />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="rounded-3xl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que quer apagar este lançamento?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="rounded-full">
+                                Cancelar
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
+                                className="bg-destructive text-white rounded-full hover:bg-destructive/90"
+                              >
+                                Apagar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
