@@ -1,5 +1,6 @@
 import pb from '@/lib/pocketbase/client'
 
+// Transaction record interface matching backend schema
 export interface TransactionRecord {
   id?: string
   date: string

@@ -93,7 +93,7 @@ export function BlockProfitability() {
     else if (period === 'last_6_months') monthsCount = 6
     else if (period === 'current_year') monthsCount = new Date().getMonth() + 1
     else if (period === 'last_year') monthsCount = 12
-    else if (period === 'always' || period === 'custom') {
+    else if (period === 'always') {
       const dates = filteredTxs.map(
         (t) => new Date(t.date).getFullYear() * 12 + new Date(t.date).getMonth(),
       )
