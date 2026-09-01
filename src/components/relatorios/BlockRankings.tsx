@@ -14,6 +14,43 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 
+const WITHDRAWAL_FIXED_VALUE = 200
+
+function getProcedurePriority(name: string): number {
+  const lower = name.toLowerCase()
+  if (lower.includes('diu') || lower.includes('implanon')) return 1
+  if (lower.includes('laser')) return 2
+  if (lower.includes('colposcopia')) return 3
+  if (lower.includes('primeira consulta')) return 4
+  if (lower.includes('seguimento')) return 5
+  if (lower.includes('microscopia')) return 6
+  return 7
+}
+
+function getProcedureRevenue(procs: string[], totalAmount: number): Map<string, number> {
+  const revenue = new Map<string, number>()
+  if (procs.length === 0) return revenue
+
+  const withdrawalProcs = procs.filter((p) => p === 'Retirada DIU' || p === 'Retirada Implanon')
+  const otherProcs = procs.filter((p) => p !== 'Retirada DIU' && p !== 'Retirada Implanon')
+
+  let remainder = totalAmount
+
+  for (const wp of withdrawalProcs) {
+    const allocated = Math.min(WITHDRAWAL_FIXED_VALUE, remainder)
+    revenue.set(wp, (revenue.get(wp) || 0) + allocated)
+    remainder -= allocated
+  }
+
+  if (otherProcs.length > 0 && remainder > 0) {
+    const sorted = [...otherProcs].sort((a, b) => getProcedurePriority(a) - getProcedurePriority(b))
+    const top = sorted[0]
+    revenue.set(top, (revenue.get(top) || 0) + remainder)
+  }
+
+  return revenue
+}
+
 export function BlockRankings() {
   const { allTransactions, doctorFilter } = useRelatorios()
   const [localPeriod, setLocalPeriod] = useState<PeriodFilter>('current_month')
@@ -53,11 +90,11 @@ export function BlockRankings() {
       else if (typeof t.procedures === 'string') procs = [t.procedures]
       else if (t.category) procs = [t.category]
 
-      const valPerProc = procs.length > 0 ? t.amount / procs.length : t.amount
+      const revMap = getProcedureRevenue(procs, t.amount)
       procs.forEach((pr) => {
         const p = procMap.get(pr) || { count: 0, rev: 0 }
         p.count += 1
-        p.rev += valPerProc
+        p.rev += revMap.get(pr) || 0
         procMap.set(pr, p)
       })
     })
