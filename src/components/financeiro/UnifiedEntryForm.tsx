@@ -43,8 +43,8 @@ const entrySchema = z.object({
   procedures: z.array(z.string()).optional(),
   payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
   card_machine: z.string().optional(),
-  installments: z.coerce.number().min(1).max(12).optional(),
-  amount: z.coerce.number().positive('Valor deve ser maior que zero'),
+  installments: z.number().min(1).max(12).optional(),
+  amount: z.number().positive('Valor deve ser maior que zero'),
   date: z.string().min(1, 'Data é obrigatória'),
 })
 

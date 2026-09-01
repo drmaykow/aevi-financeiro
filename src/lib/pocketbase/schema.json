@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-08T20:06:21.767Z",
+  "generatedAt": "2026-09-01T00:02:48.348Z",
   "collections": [
     {
       "name": "users",
@@ -216,6 +216,12 @@
             "Desconhecido",
             "Outros"
           ]
+        },
+        {
+          "name": "nf_emitida",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX `idx_transactions_created` ON `transactions` (created)"]

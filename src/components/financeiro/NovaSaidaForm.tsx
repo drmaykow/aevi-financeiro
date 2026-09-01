@@ -11,23 +11,20 @@ import { useAuth } from '@/hooks/use-auth'
 const schema = z
   .object({
     date: z.string().min(1, 'Preencha este campo'),
-    category: z.enum(
-      [
-        'ALUGUEL',
-        'LUZ',
-        'INTERNET',
-        'MARKETING',
-        'CONDOMINIO',
-        'MATERIAL E INSUMO',
-        'CONTADOR',
-        'IMPOSTOS/TAXAS',
-        'SECRETARIA',
-        'ESTORNO DE TAXA',
-        'OUTRO',
-      ],
-      { required_error: 'Preencha este campo' },
-    ),
-    amount: z.coerce.number().min(0.01, 'Preencha este campo'),
+    category: z.enum([
+      'ALUGUEL',
+      'LUZ',
+      'INTERNET',
+      'MARKETING',
+      'CONDOMINIO',
+      'MATERIAL E INSUMO',
+      'CONTADOR',
+      'IMPOSTOS/TAXAS',
+      'SECRETARIA',
+      'ESTORNO DE TAXA',
+      'OUTRO',
+    ]),
+    amount: z.number().min(0.01, 'Preencha este campo'),
     description: z.string().optional(),
     doctor: z.string().optional(),
     patient: z.string().optional(),
@@ -177,7 +174,7 @@ export function NovaSaidaForm({
             <Input
               type="number"
               step="0.01"
-              {...form.register('amount')}
+              {...form.register('amount', { valueAsNumber: true })}
               className="rounded-xl h-12 bg-white mt-1"
             />
           </div>

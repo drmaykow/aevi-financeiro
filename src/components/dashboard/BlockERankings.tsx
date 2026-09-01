@@ -1,7 +1,7 @@
 import { useDashboard, filterByPeriod, PeriodFilter } from './DashboardContext'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { MetricTooltip } from './MetricTooltip'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
 import { useMemo, useState } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {

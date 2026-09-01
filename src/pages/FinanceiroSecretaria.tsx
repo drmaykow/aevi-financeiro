@@ -8,8 +8,10 @@ import { useRealtime } from '@/hooks/use-realtime'
 import {
   getRecentTransactions,
   deleteTransaction,
+  updateTransaction,
   TransactionRecord,
 } from '@/services/transactions'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ConsultaForm } from '@/components/financeiro/ConsultaForm'
 import { EditTransactionModal } from '@/components/financeiro/EditTransactionModal'
@@ -61,6 +63,35 @@ export default function FinanceiroSecretaria() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
+  const [updatingNfId, setUpdatingNfId] = useState<string | null>(null)
+
+  const handleToggleNf = async (tx: TransactionRecord) => {
+    if (!tx.id) return
+    const nextStatus = !tx.nf_emitida
+    // Optimistic update
+    setTransactions((prev) =>
+      prev.map((item) => (item.id === tx.id ? { ...item, nf_emitida: nextStatus } : item)),
+    )
+    setUpdatingNfId(tx.id)
+    try {
+      await updateTransaction(tx.id, { nf_emitida: nextStatus })
+      toast({
+        title: nextStatus ? 'NF marcada como emitida' : 'NF marcada como pendente',
+      })
+    } catch (error: any) {
+      // Revert optimistic update
+      setTransactions((prev) =>
+        prev.map((item) => (item.id === tx.id ? { ...item, nf_emitida: tx.nf_emitida } : item)),
+      )
+      toast({
+        title: 'Erro ao atualizar status da NF',
+        description: error.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setUpdatingNfId(null)
+    }
+  }
 
   const loadData = async () => {
     try {
@@ -122,7 +153,15 @@ export default function FinanceiroSecretaria() {
         </div>
 
         <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 shadow-elevation">
-          <h3 className="text-lg font-bold mb-4 text-foreground">Últimos Lançamentos</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <h3 className="text-lg font-bold text-foreground">Últimos Lançamentos</h3>
+            {!loading && transactions.length > 0 && (
+              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60 w-fit">
+                {transactions.filter((tx) => !tx.nf_emitida).length} de {transactions.length} NF
+                pendentes
+              </span>
+            )}
+          </div>
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -179,6 +218,28 @@ export default function FinanceiroSecretaria() {
                           {tx.payment_method}
                         </span>
                       )}
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center pl-1 pr-1 border-l border-border/40">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                        NF
+                      </span>
+                      <Checkbox
+                        checked={!!tx.nf_emitida}
+                        disabled={updatingNfId === tx.id}
+                        onCheckedChange={() => handleToggleNf(tx)}
+                        className={`h-5 w-5 rounded-md transition-colors ${
+                          tx.nf_emitida
+                            ? 'border-green-600 bg-green-600 text-white data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600'
+                            : 'border-muted-foreground/40 hover:border-muted-foreground bg-white'
+                        }`}
+                        title={
+                          tx.nf_emitida
+                            ? 'NF emitida (clique para marcar como pendente)'
+                            : 'NF pendente (clique para marcar como emitida)'
+                        }
+                        aria-label="Controle de emissão de NF"
+                      />
                     </div>
                     {(!tx.created ||
                       Date.now() - new Date(tx.created.replace(' ', 'T')).getTime() <=

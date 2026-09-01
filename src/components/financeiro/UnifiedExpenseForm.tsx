@@ -48,7 +48,7 @@ const expenseSchema = z
       'OUTRO',
     ]),
     description: z.string().min(1, 'Descrição é obrigatória'),
-    amount: z.coerce.number().positive('Valor deve ser maior que zero'),
+    amount: z.number().positive('Valor deve ser maior que zero'),
     date: z.string().min(1, 'Data é obrigatória'),
     is_recurring: z.boolean().optional(),
     doctor: z.string().optional(),

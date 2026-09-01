@@ -24,12 +24,10 @@ const schema = z
     patient: z.string().min(1, 'Informe o nome da paciente'),
     patient_source: z.string().optional(),
     procedures: z.array(z.string()).min(1, 'Selecione ao menos um procedimento'),
-    amount: z.coerce.number().min(0.01, 'Preencha este campo'),
-    payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO'], {
-      required_error: 'Preencha este campo',
-    }),
+    amount: z.number().min(0.01, 'Preencha este campo'),
+    payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
     card_machine: z.string().optional(),
-    installments: z.coerce.number().optional(),
+    installments: z.number().optional(),
   })
   .refine(
     (data) => {
@@ -168,7 +166,7 @@ export function ConsultaForm({
           <Input
             type="number"
             step="0.01"
-            {...form.register('amount')}
+            {...form.register('amount', { valueAsNumber: true })}
             className="rounded-xl h-12 bg-white mt-1"
           />
         </div>

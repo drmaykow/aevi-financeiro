@@ -18,10 +18,8 @@ const schema = z.object({
   date: z.string().min(1, 'Preencha este campo'),
   doctor: z.string().min(1, 'Preencha este campo'),
   patient: z.string().min(1, 'Informe o nome da paciente'),
-  amount: z.coerce.number().min(1, 'Preencha este campo'),
-  payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO'], {
-    required_error: 'Preencha este campo',
-  }),
+  amount: z.number().min(1, 'Preencha este campo'),
+  payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
 })
 
 const getLocalDate = () => {

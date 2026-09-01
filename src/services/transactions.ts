@@ -19,6 +19,7 @@ export interface TransactionRecord {
   net_amount?: number
   card_machine?: string
   is_recurring?: boolean
+  nf_emitida?: boolean
   created?: string
   expand?: {
     card_machine?: {
@@ -86,5 +87,8 @@ export const getTransactionsPaginated = async (
 
 export const createTransaction = (data: Partial<TransactionRecord>) =>
   pb.collection('transactions').create<TransactionRecord>(data)
+
+export const updateTransaction = (id: string, data: Partial<TransactionRecord>) =>
+  pb.collection('transactions').update<TransactionRecord>(id, data)
 
 export const deleteTransaction = (id: string) => pb.collection('transactions').delete(id)
