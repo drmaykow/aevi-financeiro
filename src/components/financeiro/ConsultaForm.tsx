@@ -22,7 +22,7 @@ const schema = z
     date: z.string().min(1, 'Preencha este campo'),
     doctor: z.string().min(1, 'Preencha este campo'),
     patient: z.string().min(1, 'Informe o nome da paciente'),
-    patient_source: z.string().optional(),
+    patient_source: z.string().min(1, 'Selecione a origem do paciente'),
     procedures: z.array(z.string()).min(1, 'Selecione ao menos um procedimento'),
     amount: z.number().min(0.01, 'Preencha este campo'),
     payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
@@ -207,18 +207,22 @@ export function ConsultaForm({
           )}
         </div>
         <div>
-          <Label>Origem do Paciente</Label>
+          <Label className={form.formState.errors.patient_source ? 'text-destructive' : ''}>
+            Origem do Paciente *
+          </Label>
           <Select
-            onValueChange={(v) => form.setValue('patient_source', v)}
+            onValueChange={(v) => form.setValue('patient_source', v, { shouldValidate: true })}
             value={form.watch('patient_source')}
           >
-            <SelectTrigger className="bg-white rounded-xl h-12 mt-1">
+            <SelectTrigger
+              className={`bg-white rounded-xl h-12 mt-1 ${form.formState.errors.patient_source ? 'border-destructive ring-destructive' : ''}`}
+            >
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent>
               {[
                 'Google',
-                'Seguimento',
+                'Já é paciente',
                 'Médico(a)',
                 'Paciente',
                 'Facebook',
@@ -237,6 +241,11 @@ export function ConsultaForm({
               ))}
             </SelectContent>
           </Select>
+          {form.formState.errors.patient_source && (
+            <p className="text-xs text-destructive mt-1">
+              {form.formState.errors.patient_source.message}
+            </p>
+          )}
         </div>
       </div>
 

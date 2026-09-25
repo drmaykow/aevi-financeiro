@@ -35,18 +35,34 @@ const getLocalDate = () => {
   return `${yyyy}-${mm}-${dd}`
 }
 
-const entrySchema = z.object({
-  entry_type: z.enum(['CONSULTA/PROCEDIMENTO', 'TAXA DE AGENDAMENTO']),
-  doctor: z.string().min(1, 'Médico é obrigatório'),
-  patient: z.string().min(1, 'Paciente é obrigatório'),
-  patient_source: z.string().optional(),
-  procedures: z.array(z.string()).optional(),
-  payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
-  card_machine: z.string().optional(),
-  installments: z.number().min(1).max(12).optional(),
-  amount: z.number().positive('Valor deve ser maior que zero'),
-  date: z.string().min(1, 'Data é obrigatória'),
-})
+const entrySchema = z
+  .object({
+    entry_type: z.enum(['CONSULTA/PROCEDIMENTO', 'TAXA DE AGENDAMENTO']),
+    doctor: z.string().min(1, 'Médico é obrigatório'),
+    patient: z.string().min(1, 'Paciente é obrigatório'),
+    patient_source: z.string().optional(),
+    procedures: z.array(z.string()).optional(),
+    payment_method: z.enum(['PIX', 'DINHEIRO', 'CARTÃO DE CRÉDITO']),
+    card_machine: z.string().optional(),
+    installments: z.number().min(1).max(12).optional(),
+    amount: z.number().positive('Valor deve ser maior que zero'),
+    date: z.string().min(1, 'Data é obrigatória'),
+  })
+  .refine(
+    (data) => {
+      if (
+        data.entry_type === 'CONSULTA/PROCEDIMENTO' &&
+        (!data.patient_source || data.patient_source.trim() === '')
+      ) {
+        return false
+      }
+      return true
+    },
+    {
+      message: 'Selecione a origem do paciente',
+      path: ['patient_source'],
+    },
+  )
 
 type EntryFormValues = z.infer<typeof entrySchema>
 
@@ -229,7 +245,7 @@ export function UnifiedEntryForm({
               name="patient_source"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Origem do Paciente</FormLabel>
+                  <FormLabel>Origem do Paciente *</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -243,7 +259,7 @@ export function UnifiedEntryForm({
                     <SelectContent>
                       {[
                         'Google',
-                        'Seguimento',
+                        'Já é paciente',
                         'Médico(a)',
                         'Paciente',
                         'Facebook',

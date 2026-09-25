@@ -238,7 +238,7 @@ export function EditTransactionModal({
                   <SelectContent>
                     {[
                       'Google',
-                      'Seguimento',
+                      'Já é paciente',
                       'Médico(a)',
                       'Paciente',
                       'Facebook',
