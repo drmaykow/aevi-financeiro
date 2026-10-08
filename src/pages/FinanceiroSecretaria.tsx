@@ -236,15 +236,12 @@ export default function FinanceiroSecretaria() {
                       <p className="font-bold text-sm truncate">{cardTitle}</p>
                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                         {proceduresList.length > 0 ? (
-                          proceduresList.map((proc, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center text-[11px] font-normal leading-tight px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 max-w-[180px] truncate"
-                              title={proc}
-                            >
-                              {proc}
-                            </span>
-                          ))
+                          <span
+                            className="text-xs text-muted-foreground truncate"
+                            title={proceduresList.join(' · ')}
+                          >
+                            {proceduresList.join(' · ')}
+                          </span>
                         ) : tx.description && tx.patient ? (
                           <span className="text-xs text-muted-foreground truncate">
                             {tx.description}
