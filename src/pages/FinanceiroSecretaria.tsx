@@ -64,6 +64,7 @@ export default function FinanceiroSecretaria() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
   const [updatingNfId, setUpdatingNfId] = useState<string | null>(null)
+  const [onlyPendingNf, setOnlyPendingNf] = useState(false)
 
   const handleToggleNf = async (tx: TransactionRecord) => {
     if (!tx.id) return
@@ -156,10 +157,21 @@ export default function FinanceiroSecretaria() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
             <h3 className="text-lg font-bold text-foreground">Últimos Lançamentos</h3>
             {!loading && transactions.length > 0 && (
-              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60 w-fit">
-                {transactions.filter((tx) => !tx.nf_emitida).length} de {transactions.length} NF
-                pendentes
-              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-muted-foreground hover:text-foreground">
+                  <Checkbox
+                    checked={onlyPendingNf}
+                    onCheckedChange={(checked) => setOnlyPendingNf(!!checked)}
+                    className="h-4 w-4 rounded"
+                    aria-label="Somente NF pendentes"
+                  />
+                  <span>Somente NF pendentes</span>
+                </label>
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60 w-fit">
+                  {transactions.filter((tx) => !tx.nf_emitida).length} de {transactions.length} NF
+                  pendentes
+                </span>
+              </div>
             )}
           </div>
           {loading ? (
@@ -182,159 +194,165 @@ export default function FinanceiroSecretaria() {
             </div>
           ) : transactions.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">Nenhum lançamento encontrado.</p>
+          ) : onlyPendingNf && transactions.filter((tx) => !tx.nf_emitida).length === 0 ? (
+            <p className="text-center text-muted-foreground py-6">
+              Nenhuma NF pendente nestes lançamentos 🎉
+            </p>
           ) : (
             <div className="space-y-3">
-              {transactions.map((tx) => {
-                const isMaykow =
-                  tx.doctor === 'Dr. Maykow' || (tx.doctor && tx.doctor.includes('Maykow'))
-                const isAna =
-                  tx.doctor === 'Dra. Ana Cláudia' ||
-                  (tx.doctor && (tx.doctor.includes('Ana') || tx.doctor.includes('Cláudia')))
+              {(onlyPendingNf ? transactions.filter((tx) => !tx.nf_emitida) : transactions).map(
+                (tx) => {
+                  const isMaykow =
+                    tx.doctor === 'Dr. Maykow' || (tx.doctor && tx.doctor.includes('Maykow'))
+                  const isAna =
+                    tx.doctor === 'Dra. Ana Cláudia' ||
+                    (tx.doctor && (tx.doctor.includes('Ana') || tx.doctor.includes('Cláudia')))
 
-                const proceduresList = Array.isArray(tx.procedures)
-                  ? tx.procedures
-                  : typeof tx.procedures === 'string' && (tx.procedures as string).trim() !== ''
-                    ? [(tx.procedures as string).trim()]
-                    : []
+                  const proceduresList = Array.isArray(tx.procedures)
+                    ? tx.procedures
+                    : typeof tx.procedures === 'string' && (tx.procedures as string).trim() !== ''
+                      ? [(tx.procedures as string).trim()]
+                      : []
 
-                const cardTitle =
-                  tx.patient ||
-                  (tx.type === 'exit' && tx.category === 'ESTORNO DE TAXA'
-                    ? '↩️ Estorno de Taxa'
-                    : tx.description || 'Lançamento')
+                  const cardTitle =
+                    tx.patient ||
+                    (tx.type === 'exit' && tx.category === 'ESTORNO DE TAXA'
+                      ? '↩️ Estorno de Taxa'
+                      : tx.description || 'Lançamento')
 
-                return (
-                  <div
-                    key={tx.id}
-                    className={cn(
-                      'relative flex justify-between items-center p-3 rounded-2xl shadow-sm border border-border/50 transition-colors',
-                      isMaykow
-                        ? 'bg-blue-500/10 border-blue-500/20'
-                        : isAna
-                          ? 'bg-rose-500/10 border-rose-500/20'
-                          : 'bg-white',
-                    )}
-                  >
-                    {isMaykow && (
-                      <span
-                        className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 rounded-full bg-blue-600/15 text-blue-700 text-[10px] font-bold leading-none select-none pointer-events-none"
-                        title="Dr. Maykow"
-                      >
-                        M
-                      </span>
-                    )}
-                    {isAna && (
-                      <span
-                        className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 rounded-full bg-rose-600/15 text-rose-700 text-[10px] font-bold leading-none select-none pointer-events-none"
-                        title="Dra. Ana Cláudia"
-                      >
-                        A
-                      </span>
-                    )}
-
-                    <div className="flex-1 min-w-0 pr-4">
-                      <p className="font-bold text-sm truncate">{cardTitle}</p>
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        {proceduresList.length > 0 ? (
-                          <span
-                            className="text-xs text-muted-foreground truncate"
-                            title={proceduresList.join(' · ')}
-                          >
-                            {proceduresList.join(' · ')}
-                          </span>
-                        ) : tx.description && tx.patient ? (
-                          <span className="text-xs text-muted-foreground truncate">
-                            {tx.description}
-                          </span>
-                        ) : null}
-                        <span className="text-xs font-medium text-muted-foreground/70 whitespace-nowrap ml-auto">
-                          {formatDate(tx.date)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 whitespace-nowrap">
-                      <div className="flex flex-col items-end text-right">
+                  return (
+                    <div
+                      key={tx.id}
+                      className={cn(
+                        'relative flex justify-between items-center p-3 rounded-2xl shadow-sm border border-border/50 transition-colors',
+                        isMaykow
+                          ? 'bg-blue-500/10 border-blue-500/20'
+                          : isAna
+                            ? 'bg-rose-500/10 border-rose-500/20'
+                            : 'bg-white',
+                      )}
+                    >
+                      {isMaykow && (
                         <span
-                          className={`font-bold ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
+                          className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 rounded-full bg-blue-600/15 text-blue-700 text-[10px] font-bold leading-none select-none pointer-events-none"
+                          title="Dr. Maykow"
                         >
-                          {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
+                          M
                         </span>
-                        {tx.payment_method && (
-                          <span className="text-xs font-medium text-muted-foreground/70 mt-0.5">
-                            {tx.payment_method}
+                      )}
+                      {isAna && (
+                        <span
+                          className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 rounded-full bg-rose-600/15 text-rose-700 text-[10px] font-bold leading-none select-none pointer-events-none"
+                          title="Dra. Ana Cláudia"
+                        >
+                          A
+                        </span>
+                      )}
+
+                      <div className="flex-1 min-w-0 pr-4">
+                        <p className="font-bold text-sm truncate">{cardTitle}</p>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          {proceduresList.length > 0 ? (
+                            <span
+                              className="text-xs text-muted-foreground truncate"
+                              title={proceduresList.join(' · ')}
+                            >
+                              {proceduresList.join(' · ')}
+                            </span>
+                          ) : tx.description && tx.patient ? (
+                            <span className="text-xs text-muted-foreground truncate">
+                              {tx.description}
+                            </span>
+                          ) : null}
+                          <span className="text-xs font-medium text-muted-foreground/70 whitespace-nowrap ml-auto">
+                            {formatDate(tx.date)}
                           </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 whitespace-nowrap">
+                        <div className="flex flex-col items-end text-right">
+                          <span
+                            className={`font-bold ${tx.type === 'entry' ? 'text-green-600' : 'text-red-600'}`}
+                          >
+                            {tx.type === 'entry' ? '+' : '-'} {formatCurrency(tx.amount)}
+                          </span>
+                          {tx.payment_method && (
+                            <span className="text-xs font-medium text-muted-foreground/70 mt-0.5">
+                              {tx.payment_method}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col items-center justify-center pl-1 pr-1 border-l border-border/40">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                            NF
+                          </span>
+                          <Checkbox
+                            checked={!!tx.nf_emitida}
+                            disabled={updatingNfId === tx.id}
+                            onCheckedChange={() => handleToggleNf(tx)}
+                            className={`h-5 w-5 rounded-md transition-colors ${
+                              tx.nf_emitida
+                                ? 'border-green-600 bg-green-600 text-white data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600'
+                                : 'border-muted-foreground/40 hover:border-muted-foreground bg-white'
+                            }`}
+                            title={
+                              tx.nf_emitida
+                                ? 'NF emitida (clique para marcar como pendente)'
+                                : 'NF pendente (clique para marcar como emitida)'
+                            }
+                            aria-label="Controle de emissão de NF"
+                          />
+                        </div>
+                        {(!tx.created ||
+                          Date.now() - new Date(tx.created.replace(' ', 'T')).getTime() <=
+                            48 * 3600 * 1000) && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingTx(tx)}
+                              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                            >
+                              <Edit2 size={16} />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="rounded-3xl">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que quer apagar este lançamento?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="rounded-full">
+                                    Cancelar
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
+                                    className="bg-destructive text-white rounded-full hover:bg-destructive/90"
+                                  >
+                                    Apagar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
                         )}
                       </div>
-
-                      <div className="flex flex-col items-center justify-center pl-1 pr-1 border-l border-border/40">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                          NF
-                        </span>
-                        <Checkbox
-                          checked={!!tx.nf_emitida}
-                          disabled={updatingNfId === tx.id}
-                          onCheckedChange={() => handleToggleNf(tx)}
-                          className={`h-5 w-5 rounded-md transition-colors ${
-                            tx.nf_emitida
-                              ? 'border-green-600 bg-green-600 text-white data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600'
-                              : 'border-muted-foreground/40 hover:border-muted-foreground bg-white'
-                          }`}
-                          title={
-                            tx.nf_emitida
-                              ? 'NF emitida (clique para marcar como pendente)'
-                              : 'NF pendente (clique para marcar como emitida)'
-                          }
-                          aria-label="Controle de emissão de NF"
-                        />
-                      </div>
-                      {(!tx.created ||
-                        Date.now() - new Date(tx.created.replace(' ', 'T')).getTime() <=
-                          48 * 3600 * 1000) && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEditingTx(tx)}
-                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                          >
-                            <Edit2 size={16} />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                              >
-                                <Trash2 size={16} />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-3xl">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que quer apagar este lançamento?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel className="rounded-full">
-                                  Cancelar
-                                </AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => tx.id && deleteTransaction(tx.id).then(loadData)}
-                                  className="bg-destructive text-white rounded-full hover:bg-destructive/90"
-                                >
-                                  Apagar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      )}
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                },
+              )}
             </div>
           )}
         </div>
