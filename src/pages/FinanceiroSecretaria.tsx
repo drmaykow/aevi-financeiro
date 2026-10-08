@@ -97,7 +97,7 @@ export default function FinanceiroSecretaria() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const res = await getRecentTransactions()
+      const res = await getRecentTransactions(30)
       setTransactions(res.items)
     } catch (e) {
       console.error(e)

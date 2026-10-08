@@ -44,7 +44,7 @@ export const getDailyTransactions = async () => {
   return { items }
 }
 
-export const getRecentTransactions = async (limit = 20) => {
+export const getRecentTransactions = async (limit = 30) => {
   const filter = `type = 'entry' || (type = 'exit' && category = 'ESTORNO DE TAXA')`
   const result = await pb.collection('transactions').getList<TransactionRecord>(1, limit, {
     filter,

@@ -26,7 +26,8 @@ function getZonedParts(date: Date, timeZone: string) {
 
 /**
  * Converte um instante de data e hora em Brasília (ano, mês 1-12, dia, hora, minuto, segundo, ms)
- * para a string ISO UTC equivalente ("YYYY-MM-DDTHH:mm:ss.sssZ").
+ * para a string UTC equivalente com espaço como separador ("YYYY-MM-DD HH:mm:ss.sssZ"),
+ * compatível com a comparação léxica das datas salvas no banco de dados.
  */
 function getUtcIsoForSaoPaulo(
   year: number,
@@ -70,7 +71,7 @@ function getUtcIsoForSaoPaulo(
     guessTime += diffMs
   }
 
-  return new Date(guessTime).toISOString()
+  return new Date(guessTime).toISOString().replace('T', ' ')
 }
 
 /**
