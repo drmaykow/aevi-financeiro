@@ -10,5 +10,7 @@ export function formatCurrency(value: number) {
 }
 
 export function formatDate(dateStr: string) {
-  return new Intl.DateTimeFormat('pt-BR').format(new Date(dateStr))
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(
+    new Date(dateStr),
+  )
 }
