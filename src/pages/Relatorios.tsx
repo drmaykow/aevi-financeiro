@@ -4,6 +4,7 @@ import { BlockProfitability } from '@/components/relatorios/BlockProfitability'
 import { BlockPatientValue } from '@/components/relatorios/BlockPatientValue'
 import { BlockSeasonality } from '@/components/relatorios/BlockSeasonality'
 import { BlockRankings } from '@/components/relatorios/BlockRankings'
+import { BlockPatientSourceRanking } from '@/components/relatorios/BlockPatientSourceRanking'
 
 export default function Relatorios() {
   return (
@@ -36,7 +37,10 @@ export default function Relatorios() {
 
           <section>
             <h2 className="text-xl font-bold tracking-tight mb-4">E - Rankings & Destaques</h2>
-            <BlockRankings />
+            <div className="space-y-6">
+              <BlockPatientSourceRanking />
+              <BlockRankings />
+            </div>
           </section>
         </div>
       </div>
