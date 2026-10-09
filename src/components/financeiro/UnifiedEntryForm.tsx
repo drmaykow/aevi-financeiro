@@ -449,7 +449,7 @@ export function UnifiedEntryForm({
                 <FormItem>
                   <FormLabel>Parcelas</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(val) => field.onChange(val ? Number(val) : undefined)}
                     defaultValue={field.value?.toString()}
                     value={field.value?.toString()}
                   >
@@ -477,20 +477,27 @@ export function UnifiedEntryForm({
           <FormField
             control={form.control}
             name="amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Valor Bruto (R$)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    className="bg-muted/50 border-transparent focus-visible:ring-secondary"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const { value, onChange, ...rest } = field
+              return (
+                <FormItem>
+                  <FormLabel>Valor Bruto (R$)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="bg-muted/50 border-transparent focus-visible:ring-secondary"
+                      value={Number.isNaN(value) || value === undefined ? '' : value}
+                      onChange={(e) =>
+                        onChange(e.target.value === '' ? '' : e.target.valueAsNumber)
+                      }
+                      {...rest}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
           />
           <FormItem>
             <FormLabel>Valor Líquido (R$)</FormLabel>
