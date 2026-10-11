@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { getCardMachines, CardMachine } from '@/services/settings'
+import { getCardMachines, getProcedures, CardMachine, Procedure } from '@/services/settings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Badge } from '@/components/ui/badge'
+import { Check, ChevronsUpDown } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
+import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 
 interface EditTransactionModalProps {
@@ -31,15 +35,40 @@ export function EditTransactionModal({
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<any>({})
   const [machines, setMachines] = useState<CardMachine[]>([])
+  const [proceduresList, setProceduresList] = useState<Procedure[]>([])
 
   useEffect(() => {
     if (open) {
-      getCardMachines().then(setMachines).catch(console.error)
+      Promise.all([getCardMachines(), getProcedures()])
+        .then(([m, p]) => {
+          setMachines(m)
+          setProceduresList(p)
+        })
+        .catch(console.error)
     }
   }, [open])
 
   useEffect(() => {
     if (transaction) {
+      let initialProcedures: string[] = []
+      if (Array.isArray(transaction.procedures)) {
+        initialProcedures = transaction.procedures
+      } else if (
+        typeof transaction.procedures === 'string' &&
+        transaction.procedures.trim() !== ''
+      ) {
+        try {
+          const parsed = JSON.parse(transaction.procedures)
+          if (Array.isArray(parsed)) {
+            initialProcedures = parsed
+          } else {
+            initialProcedures = [transaction.procedures.trim()]
+          }
+        } catch {
+          initialProcedures = [transaction.procedures.trim()]
+        }
+      }
+
       setFormData({
         date: transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : '',
         amount: transaction.amount || 0,
@@ -48,6 +77,7 @@ export function EditTransactionModal({
         patient: transaction.patient || '',
         doctor: transaction.doctor || '',
         patient_source: transaction.patient_source || '',
+        procedures: initialProcedures,
         payment_method: transaction.payment_method || '',
         card_machine: transaction.card_machine || '',
         installments: transaction.installments || 1,
@@ -67,6 +97,7 @@ export function EditTransactionModal({
         category: formData.category,
         patient: formData.patient,
         doctor: formData.doctor,
+        procedures: Array.isArray(formData.procedures) ? formData.procedures : [],
         patient_source: formData.patient_source,
         payment_method: formData.payment_method,
       }
@@ -111,6 +142,14 @@ export function EditTransactionModal({
   }
 
   if (!transaction) return null
+
+  const filteredProcedures = proceduresList.filter((p) => {
+    if (!formData.doctor) return true
+    const docClean = formData.doctor.trim().toLowerCase()
+    if (docClean.includes('maykow')) return p.doctor.toLowerCase().includes('maykow')
+    if (docClean.includes('ana')) return p.doctor.toLowerCase().includes('ana')
+    return p.doctor === formData.doctor
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -162,11 +201,18 @@ export function EditTransactionModal({
               </div>
               <div className="space-y-2">
                 <Label>Médico</Label>
-                <Input
+                <Select
                   value={formData.doctor}
-                  onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
-                  className="rounded-xl h-11 bg-muted/50 border-transparent"
-                />
+                  onValueChange={(val) => setFormData({ ...formData, doctor: val })}
+                >
+                  <SelectTrigger className="rounded-xl h-11 bg-muted/50 border-transparent">
+                    <SelectValue placeholder="Selecione o médico" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Dr. Maykow">Dr. Maykow</SelectItem>
+                    <SelectItem value="Dra. Ana Cláudia">Dra. Ana Cláudia</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Método de Pagamento</Label>
@@ -257,6 +303,75 @@ export function EditTransactionModal({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Procedimentos / Consultas</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        'w-full justify-between h-auto min-h-11 px-3 py-2 rounded-xl bg-muted/50 border-transparent hover:bg-muted/70',
+                        !formData.procedures?.length && 'text-muted-foreground',
+                      )}
+                    >
+                      {formData.procedures && formData.procedures.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {formData.procedures.map((val: string) => (
+                            <Badge
+                              key={val}
+                              variant="secondary"
+                              className="font-normal bg-secondary/10 text-secondary border-secondary/20 hover:bg-secondary/20"
+                            >
+                              {val}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        'Selecione os procedimentos...'
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <div className="max-h-[240px] overflow-y-auto p-1">
+                      {filteredProcedures.length === 0 ? (
+                        <div className="p-3 text-sm text-muted-foreground text-center">
+                          Nenhum procedimento encontrado.
+                        </div>
+                      ) : (
+                        filteredProcedures.map((p) => {
+                          const isSelected = (formData.procedures || []).includes(p.name)
+                          return (
+                            <div
+                              key={p.id}
+                              className={cn(
+                                'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground',
+                                isSelected && 'bg-accent/50 font-medium',
+                              )}
+                              onClick={() => {
+                                const current: string[] = formData.procedures || []
+                                const updated = isSelected
+                                  ? current.filter((val) => val !== p.name)
+                                  : [...current, p.name]
+                                setFormData({ ...formData, procedures: updated })
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4 text-secondary',
+                                  isSelected ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              {p.name}
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </>
           )}
